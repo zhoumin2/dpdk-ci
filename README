@@ -1,0 +1,46 @@
+DPDK has a distributed Continuous Integration (CI) system.
+
+It is discussed in the mailing list ci@dpdk.org.
+
+
+When are run the tests?
+-----------------------
+
+The tests can be run at any time:
+- manually
+- regularly to monitor a git tree
+- after each patch submission to avoid accepting a bad patch
+
+
+Where are run the tests?
+------------------------
+
+The tests can be run anywhere:
+- in a private lab
+- in a public/reference lab
+
+There is no reference lab yet.
+
+
+How to view CI results?
+-----------------------
+
+The test of a patch is viewable in patchwork (http://dpdk.org/dev/patchwork)
+if the report has been sent from a trusted lab.
+The patchwork overview shows a counter column S/W/F for Success/Warning/Failure.
+A bad performance can be seen as a failure.
+More details are found in the detailed view of a patch.
+
+Every test reports can be seen at http://dpdk.org/ml/archives/test-report/.
+
+There is no summarized view of regular or manual tests yet.
+
+
+How to add a CI report?
+-----------------------
+
+A test report can be sent to test-report@dpdk.org.
+The sender must be trusted (whitelisted) by dpdk.org.
+
+If a report has the format of a "per-patch" test,
+it is automatically integrated in patchwork.
