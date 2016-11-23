@@ -44,3 +44,11 @@ The sender must be trusted (whitelisted) by dpdk.org.
 
 If a report has the format of a "per-patch" test,
 it is automatically integrated in patchwork.
+
+
+Scripts help
+------------
+
+Some scripts in this repository (dpdk-ci) may help to build a test.
+
+Their purpose and options are described when using the option -h.
