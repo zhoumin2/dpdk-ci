@@ -44,6 +44,7 @@ The sender must be trusted (whitelisted) by dpdk.org.
 
 If a report has the format of a "per-patch" test,
 it is automatically integrated in patchwork.
+The script send-patch-report.sh should be used.
 
 
 Scripts help
