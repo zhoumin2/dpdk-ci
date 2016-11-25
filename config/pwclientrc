@@ -1,0 +1,9 @@
+[options]
+default=dpdk
+
+[dpdk]
+url=http://dpdk.org/dev/patchwork/xmlrpc/
+
+# credentials are useless for read-only access
+#username: myuser
+#password: mypass

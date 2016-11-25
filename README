@@ -63,3 +63,6 @@ The file config/ci.config will be read if it is copied to /etc/dpdk/ci.config,
 ~/.config/dpdk/ci.config or .ciconfig in this directory.
 The optional options can be uncommented to change the default values used in
 the scripts.
+
+The file pwclientrc must be copied in ~/.pwclientrc in order to access to
+the XML-RPC interface of patchwork with the script pwclient.
