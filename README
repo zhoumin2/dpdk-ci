@@ -52,3 +52,14 @@ Scripts help
 Some scripts in this repository (dpdk-ci) may help to build a test.
 
 Their purpose and options are described when using the option -h.
+
+
+Scripts configuration
+---------------------
+
+Some scripts may need some configuration.
+
+The file config/ci.config will be read if it is copied to /etc/dpdk/ci.config,
+~/.config/dpdk/ci.config or .ciconfig in this directory.
+The optional options can be uncommented to change the default values used in
+the scripts.
