@@ -46,6 +46,9 @@ If a report has the format of a "per-patch" test,
 it is automatically integrated in patchwork.
 The script send-patch-report.sh should be used.
 
+If a report has the same Test-Label and patchwork id as a prior report,
+then it replaces the old one. It allows to re-run a test.
+
 
 Scripts help
 ------------
