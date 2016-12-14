@@ -32,43 +32,36 @@
 
 print_usage () {
 	cat <<- END_OF_HELP
-	usage: $(basename $0) <email_file>
+	usage: $(basename $0) [-g] <patchwork_id>
 
-	Parse basic headers of the email
-	and print them as shell variable assignments to evaluate.
+	Download a patch from patchwork through pwclient XML-RPC (default)
+	or curl HTTP GET (option -g).
 	END_OF_HELP
 }
 
-while getopts h arg ; do
+. $(dirname $(readlink -e $0))/load-ci-config.sh
+pwclient=${DPDK_CI_PWCLIENT:-$(dirname $(readlink -m $0))/pwclient}
+
+http_get=false
+while getopts gh arg ; do
 	case $arg in
+		g ) http_get=true ;;
 		h ) print_usage ; exit 0 ;;
 		? ) print_usage >&2 ; exit 1 ;;
 	esac
 done
 shift $(($OPTIND - 1))
-if [ -z "$1" ] ; then
-	printf 'file argument is missing\n\n' >&2
+pwid=$1
+if [ -z "$pwid" ] ; then
+	printf 'missing argument\n\n' >&2
 	print_usage >&2
 	exit 1
 fi
 
-getheader () # <header_name> <email_file>
-{
-	sed "/^$1: */!d;s///;N;s,\n[[:space:]]\+, ,;s,\n.*,,;q" "$2" |
-	sed 's,",\\",g'
-}
-
-subject=$(getheader Subject "$1")
-from=$(getheader From "$1")
-msgid=$(getheader Message-Id "$1")
-[ -n "$msgid" ] || msgid=$(getheader Message-ID "$1")
-pwid=$(getheader X-Patchwork-Id "$1")
-listid=$(getheader List-Id "$1")
-
-cat <<- END_OF_HEADERS
-	subject="$subject"
-	from="$from"
-	msgid="$msgid"
-	pwid="$pwid"
-	listid="$listid"
-END_OF_HEADERS
+if $http_get ; then
+	url="http://dpdk.org/dev/patchwork/patch/$pwid/mbox/"
+	curl -sf $url
+else
+	$pwclient view $pwid
+fi |
+sed '/^Subject:/{s/\(\[[^],]*\)/\1] [PATCH/;s/,/ /g}'
