@@ -43,7 +43,7 @@ print_usage () {
 	        -m msgid    id of the patch email
 	        -p pwid     id of the patch in patchwork (retrieved from msgid otherwise)
 	        -o listid   origin of the patch
-	        -l label    title of the test
+	        -l label    title of the test (slug formatted)
 	        -s status   one of these test results: SUCCESS, WARNING, FAILURE
 	        -d desc     few words to better describe the status
 	        -h          this help
@@ -69,7 +69,7 @@ while getopts d:f:hl:m:o:p:s:t: arg ; do
 		m ) msgid=$OPTARG ;;
 		p ) pwid=$OPTARG ;;
 		o ) listid=$OPTARG ;;
-		l ) label=$OPTARG ;;
+		l ) label=$(echo $OPTARG | sed 's,[[:space:]]\+,-,g') ;;
 		s ) status=$OPTARG ;;
 		d ) desc=$OPTARG ;;
 		h ) print_usage ; exit 0 ;;
