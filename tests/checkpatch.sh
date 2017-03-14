@@ -63,7 +63,7 @@ eval $($toolsdir/parse-email.sh $email)
 [ -n "$subject" -a -n "$from" ] || exit 0
 
 failed=false
-report=$($dpdkdir/scripts/checkpatches.sh -q $email) || failed=true
+report=$($dpdkdir/devtools/checkpatches.sh -q $email) || failed=true
 report=$(echo "$report" | sed '1,/^###/d')
 
 label='checkpatch'
