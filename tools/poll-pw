@@ -1,0 +1,58 @@
+#! /bin/sh -e
+
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright 2017 6WIND S.A.
+# Copyright 2018 Mellanox Technologies, Ltd
+
+URL=http://dpdk.org/dev/patchwork/api
+
+print_usage () {
+	cat <<- END_OF_HELP
+	usage: $(basename $0) <counter> <command>
+
+	Poll patchwork and call command for each patch.
+	The first patchwork id to be checked is read from the counter file.
+	The command should use '$1' to be evaluated as patchwork id.
+	When a patch is found and the command is successful,
+	then the counter is incremented.
+	END_OF_HELP
+}
+
+while getopts h arg ; do
+	case $arg in
+		h ) print_usage ; exit 0 ;;
+		? ) print_usage >&2 ; exit 1 ;;
+	esac
+done
+if [ $# -lt 2 ] ; then
+	printf 'missing argument\n\n' >&2
+	print_usage >&2
+	exit 1
+fi
+shift $(($OPTIND - 1))
+counter=$1
+shift
+cmd=$*
+
+callcmd () # <patchwork id>
+{
+	eval $cmd
+}
+
+checkid () # <patchwork id>
+{
+	curl -sfIo /dev/null $URL/patches/$1/ ||
+	curl -sfIo /dev/null $URL/covers/$1/
+}
+
+pwid=$(cat $counter)
+while true ; do
+	# process all recent patches
+	while checkid $pwid ; do
+		callcmd $pwid || break
+		pwid=$(($pwid + 1))
+		echo $pwid >$counter
+	done
+	# pause before next check
+	sleep 100
+done
