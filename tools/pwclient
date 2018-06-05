@@ -33,7 +33,6 @@ except ImportError:
 import argparse
 import string
 import subprocess
-import base64
 try:
     import ConfigParser
 except ImportError:
@@ -42,16 +41,7 @@ except ImportError:
 import shutil
 import re
 import io
-import locale
 
-if sys.version_info.major == 2:
-    # hack to make writing unicode to standard output/error work on Python 2
-    OUT_ENCODING = sys.stdout.encoding or locale.getpreferredencoding() or \
-            os.getenv('PYTHONIOENCODING', 'utf-8')
-    sys.stdout = io.open(sys.stdout.fileno(), mode='w',
-                         encoding=OUT_ENCODING, errors='replace')
-    sys.stderr = io.open(sys.stderr.fileno(), mode='w',
-                         encoding=OUT_ENCODING, errors='replace')
 
 # Default Patchwork remote XML-RPC server URL
 # This script will check the PW_XMLRPC_URL environment variable
@@ -107,6 +97,13 @@ class Filter(object):
         return str(self.d)
 
 
+if sys.version_info[0] < 3:
+    # the python 2.7 reference implementation tries to re-encode to
+    # ascii bytes here but leaves unicode if it fails. Do not try to
+    # re-encode to ascii byte string to have a more predictive behavior.
+    xmlrpclib._stringify = lambda s: s
+
+
 class Transport(xmlrpclib.SafeTransport):
 
     def __init__(self, url):
@@ -129,7 +126,7 @@ class Transport(xmlrpclib.SafeTransport):
     def make_connection(self, host):
         self.host = host
         if self.proxy:
-            host = self.proxy.split('://', 1)[-1]
+            host = self.proxy.split('://', 1)[-1].rstrip('/')
         if self.credentials:
             host = '@'.join([self.credentials, host])
         if self.https:
@@ -138,16 +135,15 @@ class Transport(xmlrpclib.SafeTransport):
             return xmlrpclib.Transport.make_connection(self, host)
 
     if sys.version_info[0] == 2:
-
         def send_request(self, connection, handler, request_body):
             handler = '%s://%s%s' % (self.scheme, self.host, handler)
-            xmlrpclib.Transport.send_request(self, connection, handler, request_body)
-
-    else: # Python 3
-
+            xmlrpclib.Transport.send_request(self, connection, handler,
+                                             request_body)
+    else:  # Python 3
         def send_request(self, host, handler, request_body, debug):
             handler = '%s://%s%s' % (self.scheme, host, handler)
-            return xmlrpclib.Transport.send_request(self, host, handler, request_body, debug)
+            return xmlrpclib.Transport.send_request(self, host, handler,
+                                                    request_body, debug)
 
 
 def project_id_by_name(rpc, linkname):
@@ -314,19 +310,9 @@ def action_get(rpc, patch_id):
         fname = "%s.%d" % (base_fname, i)
         i += 1
 
-    try:
-        f = io.open(fname, "w", encoding="utf-8")
-    except:
-        sys.stderr.write("Unable to open %s for writing\n" % fname)
-        sys.exit(1)
-
-    try:
-        f.write(unicode(s))
-        f.close()
+    with io.open(fname, 'w', encoding='utf-8') as f:
+        f.write(s)
         print('Saved patch to %s' % fname)
-    except:
-        sys.stderr.write("Failed to write to %s\n" % fname)
-        sys.exit(1)
 
 
 def action_apply(rpc, patch_id, apply_cmd=None):
@@ -402,10 +388,11 @@ def patch_id_from_hash(rpc, project, hash):
     # be super paranoid
     try:
         patch_id = int(patch_id)
-    except:
+    except ValueError:
         sys.stderr.write("Invalid patch ID obtained from server\n")
         sys.exit(1)
     return patch_id
+
 
 auth_actions = ['check_create', 'update']
 
@@ -447,13 +434,11 @@ def main():
         help='''Filter by delegate (name, e-mail substring search)'''
     )
     filter_parser.add_argument(
-        '-n', metavar='MAX#',
-        type=int,
+        '-n', metavar='MAX#', type=int,
         help='''Return first n results'''
     )
     filter_parser.add_argument(
-        '-N', metavar='MAX#',
-        type=int,
+        '-N', metavar='MAX#', type=int,
         help='''Return last N results'''
     )
     filter_parser.add_argument(
@@ -472,7 +457,14 @@ def main():
 
     action_parser = argparse.ArgumentParser(
         prog='pwclient',
-        epilog='Use \'pwclient <command> --help\' for more info',
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog="""Use 'pwclient <command> --help' for more info.
+
+To avoid unicode encode/decode errors, you should export the LANG or LC_ALL
+environment variables according to the configured locales on your system. If
+these variables are already set, make sure that they point to valid and
+installed locales.
+""",
     )
 
     subparsers = action_parser.add_subparsers(
@@ -492,6 +484,11 @@ def main():
         '-s', '--signoff',
         action='store_true',
         help='''pass --signoff to git-am'''
+    )
+    git_am_parser.add_argument(
+        '-3', '--3way',
+        action='store_true',
+        help='''pass --3way to git-am'''
     )
     get_parser = subparsers.add_parser(
         'get', parents=[hash_parser], conflict_handler='resolve',
@@ -563,13 +560,9 @@ def main():
         help='''Set patch archived state'''
     )
     update_parser.set_defaults(subcmd='update')
-    list_parser = subparsers.add_parser("list",
-                                        # aliases=['search'],
-                                        parents=[filter_parser],
-                                        help='''List patches, using the optional filters specified
-        below and an optional substring to search for patches
-        by name'''
-                                        )
+    list_parser = subparsers.add_parser(
+        'list', parents=[filter_parser],
+        help='List patches using optional filters')
     list_parser.set_defaults(subcmd='list')
     search_parser = subparsers.add_parser("search",
                                           parents=[filter_parser],
@@ -590,7 +583,7 @@ def main():
     if args.get('hash') and len(args.get('id')):
         # mimic mutual exclusive group
         locals()[action + '_parser'].error(
-            "[-h HASH] and [ID [ID ...]] are mutually exlusive")
+            "[-h HASH] and [ID [ID ...]] are mutually exclusive")
 
     # set defaults
     filt = Filter()
@@ -618,25 +611,21 @@ def main():
             'Must specify one or more update options (-a or -s)')
 
     if args.get('n') is not None:
-        try:
-            filt.add("max_count", args.get('n'))
-        except:
-            action_parser.error("Invalid maximum count '%s'" % args.get('n'))
+        filt.add("max_count", args.get('n'))
 
     if args.get('N') is not None:
-        try:
-            filt.add("max_count", 0 - args.get('N'))
-        except:
-            action_parser.error("Invalid maximum count '%s'" % args.get('N'))
+        filt.add("max_count", 0 - args.get('N'))
 
     do_signoff = args.get('signoff')
+    do_three_way = args.get('3way')
 
     # grab settings from config files
     config = ConfigParser.ConfigParser()
     config.read([CONFIG_FILE])
 
     if not config.has_section('options') and os.path.exists(CONFIG_FILE):
-        sys.stderr.write('~/.pwclientrc is in the old format. Migrating it...')
+        sys.stderr.write('%s is in the old format. Migrating it...' %
+                         CONFIG_FILE)
 
         old_project = config.get('base', 'project')
 
@@ -662,7 +651,7 @@ def main():
 
         sys.stderr.write(' Done.\n')
         sys.stderr.write(
-            'Your old ~/.pwclientrc was saved to %s\n' % old_config_file)
+            'Your old %s was saved to %s\n' % (CONFIG_FILE, old_config_file))
         sys.stderr.write(
             'and was converted to the new format. You may want to\n')
         sys.stderr.write('inspect it before continuing.\n')
@@ -671,22 +660,26 @@ def main():
     if not project_str:
         try:
             project_str = config.get('options', 'default')
-        except:
+        except (ConfigParser.NoSectionError, ConfigParser.NoOptionError):
             action_parser.error(
-                "No default project configured in ~/.pwclientrc")
+                "No default project configured in %s\n" % CONFIG_FILE)
 
     if not config.has_section(project_str):
         sys.stderr.write(
-            'No section for project %s in ~/.pwclientrc\n' % project_str)
+            'No section for project %s in %s\n' % (CONFIG_FILE, project_str))
         sys.exit(1)
     if not config.has_option(project_str, 'url'):
         sys.stderr.write(
-            'No URL for project %s in ~/.pwclientrc\n' % project_str)
+            'No URL for project %s in %s\n' % (CONFIG_FILE, project_str))
         sys.exit(1)
     if not do_signoff and config.has_option('options', 'signoff'):
         do_signoff = config.getboolean('options', 'signoff')
     if not do_signoff and config.has_option(project_str, 'signoff'):
         do_signoff = config.getboolean(project_str, 'signoff')
+    if not do_three_way and config.has_option('options', '3way'):
+        do_three_way = config.getboolean('options', '3way')
+    if not do_three_way and config.has_option(project_str, '3way'):
+        do_three_way = config.getboolean(project_str, '3way')
 
     url = config.get(project_str, 'url')
 
@@ -716,7 +709,7 @@ def main():
 
     try:
         rpc = xmlrpclib.Server(url, transport=transport)
-    except:
+    except (IOError, OSError):
         sys.stderr.write("Unable to connect to %s\n" % url)
         sys.exit(1)
 
@@ -745,7 +738,6 @@ def main():
 
     elif action.startswith('project'):
         action_projects(rpc)
-
 
     elif action.startswith('state'):
         action_states(rpc)
@@ -790,6 +782,8 @@ def main():
         cmd = ['git', 'am']
         if do_signoff:
             cmd.append('-s')
+        if do_three_way:
+            cmd.append('-3')
         for patch_id in non_empty(h, patch_ids):
             ret = action_apply(rpc, patch_id, cmd)
             if ret:
@@ -819,5 +813,13 @@ def main():
         action_parser.print_help()
         sys.exit(1)
 
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (UnicodeEncodeError, UnicodeDecodeError) as e:
+        import traceback
+        traceback.print_exc()
+        sys.stderr.write('Try exporting the LANG or LC_ALL env vars. See '
+                         'pwclient --help for more details.\n')
+        sys.exit(1)
