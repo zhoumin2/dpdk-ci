@@ -36,5 +36,4 @@ if $http_get ; then
 	curl -sf $url
 else
 	$pwclient view $pwid
-fi |
-sed '/^Subject:/{s/\(\[[^],]*\)/\1] [PATCH/;s/,/ /g}'
+fi
