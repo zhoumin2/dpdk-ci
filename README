@@ -25,7 +25,7 @@ There is no reference lab yet.
 How to view CI results?
 -----------------------
 
-The test of a patch is viewable in patchwork (http://dpdk.org/dev/patchwork)
+The test of a patch is viewable in patchwork (https://patches.dpdk.org)
 if the report has been sent from a trusted lab.
 The patchwork overview shows a counter column S/W/F for Success/Warning/Failure.
 A bad performance can be seen as a failure.

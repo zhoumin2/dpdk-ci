@@ -4,7 +4,7 @@
 # Copyright 2017 6WIND S.A.
 # Copyright 2018 Mellanox Technologies, Ltd
 
-URL=http://dpdk.org/dev/patchwork/api
+URL=http://patches.dpdk.org/api
 
 print_usage () {
 	cat <<- END_OF_HELP

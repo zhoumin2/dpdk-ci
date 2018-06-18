@@ -32,7 +32,7 @@ if [ -z "$pwid" ] ; then
 fi
 
 if $http_get ; then
-	url="http://dpdk.org/dev/patchwork/patch/$pwid/mbox/"
+	url="http://patches.dpdk.org/patch/$pwid/mbox/"
 	curl -sf $url
 else
 	$pwclient view $pwid

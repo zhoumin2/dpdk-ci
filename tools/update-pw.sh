@@ -28,7 +28,7 @@ if [ -z "$1" ] ; then
 	exit 1
 fi
 
-url="http://dpdk.org/ml/archives/test-report/$1"
+url="http://mails.dpdk.org/archives/test-report/$1"
 mmarker='<!--beginarticle-->'
 for try in $(seq 20) ; do
 	[ -z "$report" -o $try -ge 19 ] || continue # 2 last tries if got something

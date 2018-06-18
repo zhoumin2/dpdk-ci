@@ -2,7 +2,7 @@
 default=dpdk
 
 [dpdk]
-url=http://dpdk.org/dev/patchwork/xmlrpc/
+url=http://patches.dpdk.org/xmlrpc/
 
 # credentials are useless for read-only access
 #username: myuser
