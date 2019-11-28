@@ -36,6 +36,13 @@ eval $($toolsdir/parse-email.sh $email)
 [ -n "$subject" -a -n "$from" ] || exit 0
 
 failed=false
+
+# check In-Reply-To for version > 1
+if echo $subject | grep -qi 'v[2-9].*\]' && [ -z "$reply" ] ; then
+	failed=true
+	replyto_msg='Must be a reply to the first patch (--in-reply-to).\n\n'
+fi
+
 report=$($dpdkdir/devtools/checkpatches.sh -q $email) || failed=true
 report=$(echo "$report" | sed '1,/^###/d')
 
@@ -43,6 +50,6 @@ label='checkpatch'
 $failed && status='WARNING' || status='SUCCESS'
 $failed && desc='coding style issues' || desc='coding style OK'
 
-echo "$report" | $toolsdir/send-patch-report.sh \
+echo "$replyto_msg$report" | $toolsdir/send-patch-report.sh \
 	-t "$subject" -f "$from" -m "$msgid" -p "$pwid" -o "$listid" \
 	-l "$label" -s "$status" -d "$desc"

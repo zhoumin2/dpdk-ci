@@ -37,6 +37,7 @@ msgid=$(getheader Message-Id "$1")
 [ -n "$msgid" ] || msgid=$(getheader Message-ID "$1")
 pwid=$(getheader X-Patchwork-Id "$1")
 listid=$(getheader List-Id "$1")
+reply=$(getheader In-Reply-To "$1")
 
 cat <<- END_OF_HEADERS
 	subject="$subject"
@@ -44,4 +45,5 @@ cat <<- END_OF_HEADERS
 	msgid="$msgid"
 	pwid="$pwid"
 	listid="$listid"
+	reply="$reply"
 END_OF_HEADERS
