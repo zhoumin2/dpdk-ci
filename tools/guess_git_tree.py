@@ -146,8 +146,11 @@ class Maintainers(object):
         tree_list = []
         for _file in files:
             _tree = self._get_tree(_file)
-            if _tree:
-                tree_list.append(_tree)
+            # No identified tree for a file means that it should go through
+            # the main repository.
+            if not _tree:
+                _tree = 'dpdk'
+            tree_list.append(_tree)
         tree = self.get_common_denominator(tree_list)
         if tree == '':
             tree = 'dpdk'
