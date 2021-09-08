@@ -43,7 +43,7 @@ if echo $subject | grep -qi 'v[2-9].*\]' && [ -z "$reply" ] ; then
 	replyto_msg='Must be a reply to the first patch (--in-reply-to).\n\n'
 fi
 
-report=$($dpdkdir/devtools/checkpatches.sh -q $email) || failed=true
+report=$(cd $dpdkdir && devtools/checkpatches.sh -q $email) || failed=true
 report=$(echo "$report" | sed '1,/^###/d')
 
 label='checkpatch'
