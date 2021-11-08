@@ -31,13 +31,13 @@ variables PW_{SERVER,PROJECT,TOKEN} should be set. If not, the script will try
 to load the git configurations pw.{server,project,token}.
 
 Example usage:
-    ./guess-git-tree.py --command list_trees_for_series 2054
-    ./guess-git-tree.py --command list_trees_for_patch 2054
+    ./pw_maintainers_cli.py --command list_trees_for_series 2054
+    ./pw_maintainers_cli.py --command list_trees_for_patch 2054
 
 Or if you want to use inside other scripts:
 
     import os
-    from guess_git_tree import (Maintainers, GitPW, Diff)
+    from pw_maintainers_cli import (Maintainers, GitPW, Diff)
     _git_pw = GitPW({
         'pw_server': os.environ.get('PW_SERVER'),
         'pw_project': os.environ.get('PW_PROJECT'),
