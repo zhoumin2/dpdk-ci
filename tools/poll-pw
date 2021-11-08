@@ -5,18 +5,23 @@
 # Copyright 2018 Mellanox Technologies, Ltd
 
 URL=http://patches.dpdk.org/api
+PAUSE_SECONDS=100
 
 print_usage () {
 	cat <<- END_OF_HELP
-	usage: $(basename $0) <counter> <command>
+	usage: $(basename $0) [OPTIONS] </path/to/last.txt> <command>
 
 	Poll patchwork and call command for each patch.
-	The first patchwork id to be checked is read from the counter file.
-	The command should use '$1' to be evaluated as patchwork id.
-	When a patch is found and the command is successful,
-	then the counter is incremented.
+	The first date to filter with is read from the specified file.
+	The command should use '$1' to be evaluated as the patch id.
+	The date in the specified file is updated after each pull.
 	END_OF_HELP
 }
+
+if ! command -v jq >/dev/null 2>&1 ; then
+	printf "The command jq is unavailable, please install it.\n\n" >&2
+	exit 1
+fi
 
 while getopts h arg ; do
 	case $arg in
@@ -24,35 +29,48 @@ while getopts h arg ; do
 		? ) print_usage >&2 ; exit 1 ;;
 	esac
 done
+
 if [ $# -lt 2 ] ; then
-	printf 'missing argument\n\n' >&2
+	printf 'missing argument(s)\n\n' >&2
 	print_usage >&2
 	exit 1
 fi
 shift $(($OPTIND - 1))
-counter=$1
+since_file=$1
 shift
 cmd=$*
+
+if [ ! -f "$since_file" ] ; then
+	printf "The file '$since_file' doesn't exist.\n\n" >&2
+	exit 1
+fi
+
+if ! date -d "$(cat $since_file | tr '\n' ' ')" >/dev/null 2>&1 ; then
+	printf "The file '$since_file' doesn't contain a valid date format.\n\n" >&2
+	exit 1
+fi
+
+URL="${URL}/events/?category=patch-completed"
 
 callcmd () # <patchwork id>
 {
 	eval $cmd
 }
 
-checkid () # <patchwork id>
-{
-	curl -sfIo /dev/null $URL/patches/$1/ ||
-	curl -sfIo /dev/null $URL/covers/$1/
-}
-
-pwid=$(cat $counter)
 while true ; do
-	# process all recent patches
-	while checkid $pwid ; do
-		callcmd $pwid || break
-		pwid=$(($pwid + 1))
-		echo $pwid >$counter
+	date_now=$(date --utc '+%FT%T')
+	since=$(date -d $(cat $since_file | tr '\n' ' ') '+%FT%T')
+	page=1
+	while true ; do
+		ids=$(curl -s "${URL}&page=${page}&since=${since}" |
+			jq 'try ( .[].payload.patch.id )')
+		[ -z "$(echo $ids | tr -d '\n')" ] && break
+		for id in $ids ; do
+			callcmd $id
+		done
+		page=$(($page + 1))
 	done
+	printf $date_now >$since_file
 	# pause before next check
-	sleep 100
+	sleep $PAUSE_SECONDS
 done
