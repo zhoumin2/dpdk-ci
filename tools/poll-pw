@@ -9,11 +9,11 @@ PAUSE_SECONDS=100
 
 print_usage () {
 	cat <<- END_OF_HELP
-	usage: $(basename $0) [OPTIONS] </path/to/last.txt> <command>
+	usage: $(basename $0) [OPTIONS] <patch|series> </path/to/last.txt> <command>
 
-	Poll patchwork and call command for each patch.
+	Poll patchwork and call a command for each new patch/series id.
 	The first date to filter with is read from the specified file.
-	The command should use '$1' to be evaluated as the patch id.
+	The command should use '$1' to be evaluated as the patch/series id.
 	The date in the specified file is updated after each pull.
 	END_OF_HELP
 }
@@ -30,14 +30,15 @@ while getopts h arg ; do
 	esac
 done
 
-if [ $# -lt 2 ] ; then
+if [ $# -lt 3 ] ; then
 	printf 'missing argument(s)\n\n' >&2
 	print_usage >&2
 	exit 1
 fi
 shift $(($OPTIND - 1))
-since_file=$1
-shift
+resource_type=$1
+since_file=$2
+shift 2
 cmd=$*
 
 if [ ! -f "$since_file" ] ; then
@@ -50,7 +51,13 @@ if ! date -d "$(cat $since_file | tr '\n' ' ')" >/dev/null 2>&1 ; then
 	exit 1
 fi
 
-URL="${URL}/events/?category=patch-completed"
+if [ "$resource_type" != "patch" -a "$resource_type" != "series" ] ; then
+	printf "Unknown resource type '$resource_type'.\n\n" >&2
+	print_usage >&2
+	exit 1
+fi
+
+URL="${URL}/events/?category=${resource_type}-completed"
 
 callcmd () # <patchwork id>
 {
@@ -63,7 +70,7 @@ while true ; do
 	page=1
 	while true ; do
 		ids=$(curl -s "${URL}&page=${page}&since=${since}" |
-			jq 'try ( .[].payload.patch.id )')
+			jq "try ( .[].payload.${resource_type}.id )")
 		[ -z "$(echo $ids | tr -d '\n')" ] && break
 		for id in $ids ; do
 			callcmd $id
