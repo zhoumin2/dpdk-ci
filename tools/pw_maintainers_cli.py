@@ -31,8 +31,8 @@ variables PW_{SERVER,PROJECT,TOKEN} should be set. If not, the script will try
 to load the git configurations pw.{server,project,token}.
 
 Example usage:
-    ./pw_maintainers_cli.py --command list_trees_for_series 2054
-    ./pw_maintainers_cli.py --command list_trees_for_patch 2054
+    ./pw_maintainers_cli.py --type series list-trees 2054
+    ./pw_maintainers_cli.py --type patch list-trees 2054
 
 Or if you want to use inside other scripts:
 
@@ -238,36 +238,42 @@ if __name__ == '__main__':
     """Main procedure."""
     parser = argparse.ArgumentParser()
     git_pw_conf_parser = parser.add_argument_group('git-pw configurations')
-    options_parser = parser.add_argument_group('optional arguments')
+    required_args_parser = parser.add_argument_group('required arguments')
 
-    options_parser.add_argument(
-            '--command',
+    required_args_parser.add_argument(
+            '--type',
             choices=(
-                'list_trees_for_patch',
-                'list_trees_for_series'),
-            required=True, help='Command to perform')
+                'patch',
+                'series'),
+            required=True, help='Resource type.')
 
     git_pw_conf_parser.add_argument(
-            '--pw_server', type=str,
+            '--pw-server', type=str,
             default=os.environ.get(
                 'PW_SERVER', utils.git_config('pw.server')),
             help='Patchwork server')
     git_pw_conf_parser.add_argument(
-            '--pw_project', type=str,
+            '--pw-project', type=str,
             default=os.environ.get(
                 'PW_PROJECT', utils.git_config('pw.project')),
             help='Patchwork project')
     git_pw_conf_parser.add_argument(
-            '--pw_token', type=str,
+            '--pw-token', type=str,
             default=os.environ.get('PW_TOKEN', utils.git_config('pw.token')),
             help='Authentication token')
 
+    parser.add_argument(
+            'command',
+            choices=[
+                'list-trees'],
+            help='Command to perform')
     parser.add_argument(
             'id', type=int, help='patch/series id')
 
     args = parser.parse_args()
 
     command = args.command
+    resource_type = args.type
     _id = args.id
 
     # Pass the needed configurations to git-pw.
@@ -279,9 +285,9 @@ if __name__ == '__main__':
     maintainers = Maintainers()
 
     patch_list = []
-    if command == 'list_trees_for_patch':
+    if resource_type == 'patch':
         patch_list.append(_git_pw.api_get('patches', _id))
-    elif command == 'list_trees_for_series':
+    else:
         series = _git_pw.api_get('series', _id)
         patch_list = [
                 _git_pw.api_get('patches', patch['id'])
@@ -290,4 +296,8 @@ if __name__ == '__main__':
     files = []
     for patch in patch_list:
         files += Diff.find_filenames(patch['diff'])
-    print(maintainers.get_tree(files).split('/')[-1])
+
+    tree = maintainers.get_tree(files)
+
+    if command == 'list-trees':
+        print(tree.split('/')[-1])
