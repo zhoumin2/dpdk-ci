@@ -14,6 +14,7 @@ from requests.exceptions import HTTPError
 from git_pw import config
 from git_pw import api
 from git_pw import utils
+from git_pw import patch as git_pw_patch
 
 """
 Description:
@@ -83,6 +84,34 @@ class GitPW(object):
                 sys.exit(1)
             else:
                 raise
+
+    def set_delegate(self, patch_list, delegate, skip_delegated=False):
+        """
+        Set the delegate for a patch.
+        This overrides the current delegate. If 'skip_delegated' is set to
+        True, only set a delegate for patches that don't have one set already.
+
+        Reference:
+        https://github.com/getpatchwork/git-pw/blob/76b79097dc0a57/git_pw/patch.py#L167
+        """
+        users = api.index('users', [('q', delegate)])
+        if len(users) != 1:
+            # Zero or multiple users found
+            print('Cannot choose a Patchwork user to delegate to from '
+                  'user list ({}). Skipping..'.format(users))
+            return
+        for patch in patch_list:
+            if patch['delegate'] != None and \
+                    (patch['delegate'].get('email') == users[0].get('email') or \
+                    skip_delegated):
+                print('Patch {} is already delegated to {}. '
+                      'Skipping..'.format(
+                          patch['id'], patch['delegate']['email']))
+                continue
+            print("Delegating patch {} to {}..".format(
+                patch['id'], users[0]['email']))
+            _ = api.update(
+                    'patches', patch['id'], [('delegate', users[0]['id'])])
 
 
 class Diff(object):
@@ -288,15 +317,20 @@ if __name__ == '__main__':
             help='Authentication token')
 
     parser.add_argument(
+            '--skip-delegated',
+            action='store_true', required=False,
+            help='Skip patches that are already delegated')
+    parser.add_argument(
             'command',
             choices=[
-                'list-trees', 'list-maintainers'],
+                'list-trees', 'list-maintainers', 'set-pw-delegate'],
             help='Command to perform')
     parser.add_argument(
             'id', type=int, help='patch/series id')
 
     args = parser.parse_args()
 
+    skip_delegated = args.skip_delegated
     command = args.command
     resource_type = args.type
     _id = args.id
@@ -326,5 +360,22 @@ if __name__ == '__main__':
 
     if command == 'list-trees':
         print(tree.split('/')[-1])
-    elif command == 'list-maintainers':
-        print(*maintainers.get_maintainers(tree), sep='\n')
+    if command in ['list-maintainers', 'set-pw-delegate']:
+        maintainer_list = maintainers.get_maintainers(tree)
+        if command == 'list-maintainers':
+            print(*maintainer_list, sep='\n')
+        elif command == 'set-pw-delegate':
+            if len(maintainer_list) > 0:
+                # Get the email of the first maintainer in the list.
+                try:
+                    delegate = re.match(
+                            r".*\<(?P<email>.*)\>",
+                            maintainer_list[0]).group('email')
+                except AttributeError:
+                    print("Unexpected format: '{}'".format(maintainer_list[0]))
+                    sys.exit(1)
+                _git_pw.set_delegate(
+                        patch_list, delegate,
+                        skip_delegated=skip_delegated)
+            else:
+                print('No maintainers found. Not setting a delegate.')
