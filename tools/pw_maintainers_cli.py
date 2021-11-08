@@ -33,6 +33,7 @@ to load the git configurations pw.{server,project,token}.
 Example usage:
     ./pw_maintainers_cli.py --type series list-trees 2054
     ./pw_maintainers_cli.py --type patch list-trees 2054
+    ./pw_maintainers_cli.py --type patch list-maintainers 2054
 
 Or if you want to use inside other scripts:
 
@@ -48,6 +49,7 @@ Or if you want to use inside other scripts:
     files = Diff.find_filenames(_git_pw.api_get('patches', patch_id)['diff'])
     tree_url = maintainers.get_tree(files)
     tree_name = tree_url.split('/')[-1]
+    maintainers = maintainers.get_maintainers(tree_url)
 """
 
 
@@ -118,8 +120,10 @@ class Maintainers(object):
 
     file_regex = r'F:\s(.*)'
     tree_regex = r'T: (?P<url>git:\/\/dpdk\.org(?:\/next)*\/(?P<name>.*))'
+    maintainer_regex = r'M:\s(.*)'
     section_regex = r'([^\n]*)\n-+.*?(?=([^\n]*\n-+)|\Z)'
     subsection_regex = r'[^\n](?:(?!\n{{2}}).)*?^{}: {}$(?:(?!\n{{2}}).)*'
+    general_proj_admin_title = 'General Project Administration'
 
     def __init__(self):
         with open(MAINTAINERS_FILE_PATH) as fd:
@@ -140,6 +144,27 @@ class Maintainers(object):
                 self.file_regex, self.maintainers_txt, re.MULTILINE)
         # Save already matched patterns.
         self.matched = {}
+
+    def get_maintainers(self, tree):
+        """
+        Return a list of a tree's maintainers.
+        """
+        maintainers = []
+        for section in self.sections:
+            if section.group(1) == self.general_proj_admin_title:
+                # Find the block containing the tree.
+                regex = self.subsection_regex.format('T', re.escape(tree))
+                subsection_match = re.findall(
+                        regex,
+                        section.group(0),
+                        re.DOTALL | re.MULTILINE)
+                if len(subsection_match):
+                    subsection = subsection_match[-1]
+                    # Look for maintainers
+                    maintainers = re.findall(
+                            self.maintainer_regex, subsection)
+                    return maintainers
+                break
 
     def get_tree(self, files):
         """
@@ -265,7 +290,7 @@ if __name__ == '__main__':
     parser.add_argument(
             'command',
             choices=[
-                'list-trees'],
+                'list-trees', 'list-maintainers'],
             help='Command to perform')
     parser.add_argument(
             'id', type=int, help='patch/series id')
@@ -301,3 +326,5 @@ if __name__ == '__main__':
 
     if command == 'list-trees':
         print(tree.split('/')[-1])
+    elif command == 'list-maintainers':
+        print(*maintainers.get_maintainers(tree), sep='\n')
