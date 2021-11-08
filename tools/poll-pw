@@ -9,7 +9,7 @@ PAUSE_SECONDS=100
 
 print_usage () {
 	cat <<- END_OF_HELP
-	usage: $(basename $0) [OPTIONS] <patch|series> </path/to/last.txt> <command>
+	usage: $(basename $0) [OPTIONS] <patch|series> <project> </path/to/last.txt> <command>
 
 	Poll patchwork and call a command for each new patch/series id.
 	The first date to filter with is read from the specified file.
@@ -30,15 +30,16 @@ while getopts h arg ; do
 	esac
 done
 
-if [ $# -lt 3 ] ; then
+if [ $# -lt 4 ] ; then
 	printf 'missing argument(s)\n\n' >&2
 	print_usage >&2
 	exit 1
 fi
 shift $(($OPTIND - 1))
 resource_type=$1
-since_file=$2
-shift 2
+project=$2
+since_file=$3
+shift 3
 cmd=$*
 
 if [ ! -f "$since_file" ] ; then
@@ -57,6 +58,11 @@ if [ "$resource_type" != "patch" -a "$resource_type" != "series" ] ; then
 	exit 1
 fi
 
+if ! curl -s $URL/projects/ | jq '.[].name' | grep -qi "^\"${project}\"$" ; then
+	printf "The project '$project' doesn't exist.\n\n" >&2
+	exit 1
+fi
+
 URL="${URL}/events/?category=${resource_type}-completed"
 
 callcmd () # <patchwork id>
@@ -70,7 +76,8 @@ while true ; do
 	page=1
 	while true ; do
 		ids=$(curl -s "${URL}&page=${page}&since=${since}" |
-			jq "try ( .[].payload.${resource_type}.id )")
+			jq "try ( .[] | select( .project.name == \"$project\" ) )" |
+			jq "try ( .payload.${resource_type}.id )")
 		[ -z "$(echo $ids | tr -d '\n')" ] && break
 		for id in $ids ; do
 			callcmd $id
