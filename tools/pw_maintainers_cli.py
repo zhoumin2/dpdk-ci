@@ -46,7 +46,8 @@ Or if you want to use inside other scripts:
     maintainers = Maintainers()
     patch_id = 52199
     files = Diff.find_filenames(_git_pw.api_get('patches', patch_id)['diff'])
-    tree = maintainers.get_tree(files)
+    tree_url = maintainers.get_tree(files)
+    tree_name = tree_url.split('/')[-1]
 """
 
 
@@ -116,9 +117,9 @@ class Diff(object):
 class Maintainers(object):
 
     file_regex = r'F:\s(.*)'
-    tree_regex = r'T: git:\/\/dpdk\.org(?:\/next)*\/(.*)'
+    tree_regex = r'T: (?P<url>git:\/\/dpdk\.org(?:\/next)*\/(?P<name>.*))'
     section_regex = r'([^\n]*)\n-+.*?(?=([^\n]*\n-+)|\Z)'
-    subsection_regex = r'[^\n](?:(?!\n{{2}}).)*?^F: {}(?:(?!\n{{2}}).)*'
+    subsection_regex = r'[^\n](?:(?!\n{{2}}).)*?^{}: {}$(?:(?!\n{{2}}).)*'
 
     def __init__(self):
         with open(MAINTAINERS_FILE_PATH) as fd:
@@ -151,8 +152,8 @@ class Maintainers(object):
             if _tree:
                 tree_list.append(_tree)
         tree = self.get_common_denominator(tree_list)
-        if tree == '':
-            tree = 'dpdk'
+        if not tree:
+            tree = 'git://dpdk.org/dpdk'
         return tree
 
     def _get_tree(self, filename):
@@ -180,7 +181,7 @@ class Maintainers(object):
 
         found_match = False
         # Find the block containing filename.
-        regex = self.subsection_regex.format(re.escape(matching_pattern))
+        regex = self.subsection_regex.format('F', re.escape(matching_pattern))
         subsection_match = re.findall(
                 regex,
                 self.maintainers_txt,
@@ -191,7 +192,7 @@ class Maintainers(object):
             tree_match = re.search(
                     self.tree_regex, subsection)
             if tree_match:
-                tree = tree_match.group(1)
+                tree = tree_match.group('url')
                 self.matched[matching_pattern] = tree
                 found_match = True
 
@@ -204,7 +205,7 @@ class Maintainers(object):
                             self.tree_regex,
                             section.group(0).split('\n\n')[0])
                     if tree_match:
-                        tree = tree_match.group(1)
+                        tree = tree_match.group('url')
 
         self.matched[matching_pattern] = tree
         return tree
@@ -228,8 +229,8 @@ class Maintainers(object):
             os.path.commonprefix(_tree_list).rstrip('-').replace(
                     'dpdk-next-net-virtio', 'dpdk-next-virtio')
         # There is no 'dpdk-next' named tree.
-        if common_prefix == 'dpdk-next':
-            common_prefix = 'dpdk'
+        if common_prefix.endswith('dpdk-next') or common_prefix.endswith('/'):
+            common_prefix = 'git://dpdk.org/dpdk'
         return common_prefix
 
 
@@ -289,4 +290,4 @@ if __name__ == '__main__':
     files = []
     for patch in patch_list:
         files += Diff.find_filenames(patch['diff'])
-    print(maintainers.get_tree(files))
+    print(maintainers.get_tree(files).split('/')[-1])
