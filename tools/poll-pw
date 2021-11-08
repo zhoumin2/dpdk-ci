@@ -63,6 +63,11 @@ if ! curl -s $URL/projects/ | jq '.[].name' | grep -qi "^\"${project}\"$" ; then
 	exit 1
 fi
 
+poll_pw_ids_file=/tmp/poll_pw_${resource_type}_ids
+if [ ! -f "$poll_pw_ids_file" ] ; then
+	touch $poll_pw_ids_file
+fi
+
 URL="${URL}/events/?category=${resource_type}-completed"
 
 callcmd () # <patchwork id>
@@ -80,11 +85,19 @@ while true ; do
 			jq "try ( .payload.${resource_type}.id )")
 		[ -z "$(echo $ids | tr -d '\n')" ] && break
 		for id in $ids ; do
+			if grep -q "^${id}$" $poll_pw_ids_file ; then
+				continue
+			fi
 			callcmd $id
+			echo $id >>$poll_pw_ids_file
 		done
 		page=$(($page + 1))
 	done
 	printf $date_now >$since_file
+	# keep only up to 1000 entries in poll_pw_ids_file
+	if [ $(wc -l <$poll_pw_ids_file) -ge 1000 ] ; then
+		echo "$(tail -n 500 $poll_pw_ids_file)" >$poll_pw_ids_file
+	fi
 	# pause before next check
 	sleep $PAUSE_SECONDS
 done
