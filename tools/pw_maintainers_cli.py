@@ -56,7 +56,7 @@ Or if you want to use inside other scripts:
 
 MAINTAINERS_FILE_PATH = os.environ.get('MAINTAINERS_FILE_PATH')
 if not MAINTAINERS_FILE_PATH:
-    print('MAINTAINERS_FILE_PATH is not set.')
+    print('MAINTAINERS_FILE_PATH is not set.', file=sys.stderr)
     sys.exit(1)
 
 
@@ -70,8 +70,7 @@ class GitPW(object):
         for key in conf_keys:
             value = conf_obj.get('pw_{}'.format(key))
             if not value:
-                print('--pw_{} is a required git-pw configuration'.format(key))
-                sys.exit(1)
+                sys.exit('--pw_{} is a required git-pw configuration'.format(key))
             else:
                 setattr(self.CONF, key, value)
 
@@ -97,8 +96,8 @@ class GitPW(object):
         users = api.index('users', [('q', delegate)])
         if len(users) != 1:
             # Zero or multiple users found
-            print('Cannot choose a Patchwork user to delegate to from '
-                  'user list ({}). Skipping..'.format(users))
+            print('Cannot choose a Patchwork user associated with {} to '
+                  'delegate to.'.format(delegate, users), file=sys.stderr)
             return
         for patch in patch_list:
             if patch['delegate'] != None and \
@@ -374,11 +373,13 @@ if __name__ == '__main__':
                                 r".*\<(?P<email>.*)\>",
                                 maintainer).group('email')
                     except AttributeError:
-                        print("Unexpected format: '{}'".format(maintainer))
+                        print("Unexpected format: '{}'".format(maintainer),
+                                file=sys.stderr)
                     delegate = _git_pw.set_delegate(
                             patch_list, maintainer_email,
                             skip_delegated=skip_delegated)
                     if delegate != None:
                         break
             else:
-                print('No maintainers found. Not setting a delegate.')
+                print('No maintainers matched. Not setting a delegate.',
+                        file=sys.stderr)
