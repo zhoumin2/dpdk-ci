@@ -112,6 +112,7 @@ class GitPW(object):
                 patch['id'], users[0]['email']))
             _ = api.update(
                     'patches', patch['id'], [('delegate', users[0]['id'])])
+        return users[0].get('email')
 
 
 class Diff(object):
@@ -366,16 +367,18 @@ if __name__ == '__main__':
             print(*maintainer_list, sep='\n')
         elif command == 'set-pw-delegate':
             if len(maintainer_list) > 0:
-                # Get the email of the first maintainer in the list.
-                try:
-                    delegate = re.match(
-                            r".*\<(?P<email>.*)\>",
-                            maintainer_list[0]).group('email')
-                except AttributeError:
-                    print("Unexpected format: '{}'".format(maintainer_list[0]))
-                    sys.exit(1)
-                _git_pw.set_delegate(
-                        patch_list, delegate,
-                        skip_delegated=skip_delegated)
+                for maintainer in maintainer_list:
+                    # Get the maintainer's email
+                    try:
+                        maintainer_email = re.match(
+                                r".*\<(?P<email>.*)\>",
+                                maintainer).group('email')
+                    except AttributeError:
+                        print("Unexpected format: '{}'".format(maintainer))
+                    delegate = _git_pw.set_delegate(
+                            patch_list, maintainer_email,
+                            skip_delegated=skip_delegated)
+                    if delegate != None:
+                        break
             else:
                 print('No maintainers found. Not setting a delegate.')
