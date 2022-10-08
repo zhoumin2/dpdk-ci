@@ -2,14 +2,21 @@
 
 set -e
 
-TOOLS_DIR=./tools
+TOOLS_DIR=tools
 DPDK_DIR=../dpdk
 
-print_usage() {
+function print_usage() {
 	cat <<- END_OF_HELP
 	usage: $(basename $0) <patchwork_id>
 	Test a patch.
 	END_OF_HELP
+}
+
+function check_error() {
+	if [ ! $? -eq 0 ]; then
+		printf "error: $1"
+		exit -1
+	fi
 }
 
 if [ $# -lt 1 ]; then
@@ -32,7 +39,18 @@ fi
 cd $DPDK_DIR
 
 git checkout main
+check_error "git checkout to main failed!"
+
 git checkout -b $patch_id
-git am ../tools/$email_file
+check_error "git checkout to $patch_id failed!"
+
+git am ../$TOOLS_DIR/$email_file
+check_error "git am ../$TOOLS_DIR/$email_file failed!"
+
 ninja build
+check_error "ninja build failed!"
+
 meson test -C build --suite DPDK:fast-tests
+check_error "meson test failed!"
+
+cd -
