@@ -1,6 +1,4 @@
-#!/bin/bash
-
-set -e
+#! /bin/sh -e
 
 TOOLS_DIR=tools
 DPDK_DIR=../dpdk
@@ -25,11 +23,12 @@ if [ $# -lt 1 ]; then
 	exit -1
 fi
 
+
 patch_id=$1
 email_file=$patch_id.patch
 
 $TOOLS_DIR/download-patch.sh $patch_id > $email_file
-$TOOLS_DIR/filter-patch-email.sh $email_file > $email_file
+echo `$TOOLS_DIR/filter-patch-email.sh < $email_file` > $email_file
 
 if [ ! -s $email_file ]; then
 	printf "$email_file is empty"

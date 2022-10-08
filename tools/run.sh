@@ -1,6 +1,4 @@
-#!/bin/bash
-
-set -e
+#! /bin/sh -e
 
 TOOLS_DIR=tools
 DPDK_DIR=../dpdk

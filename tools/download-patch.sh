@@ -33,7 +33,6 @@ fi
 
 if $http_get ; then
 	url="http://patches.dpdk.org/patch/$pwid/mbox/"
-	echo $url
 	curl -sfL $url
 else
 	$pwclient view $pwid
