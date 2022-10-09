@@ -84,6 +84,7 @@ while true ; do
 	since=$(date -d "$(cat $since_file | tr '\n' ' ')" '+%FT%T')
 	page=1
 	while true ; do
+		echo "${URL}&page=${page}&since=${since}"
 		ids=$(curl -s "${URL}&page=${page}&since=${since}" |
 			jq "try ( .[] | select( .project.name == \"$project\" ) )" |
 			jq "try ( .payload.${resource_type}.id )")

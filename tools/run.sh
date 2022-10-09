@@ -89,4 +89,4 @@ fi
 setup
 
 export DPDK_DIR=$DPDK_DIR
-$(dirname $(readlink -e $0))/poll-pw $resource_type $project $SINCE_FILE $(dirname $(readlink -e $0))/test-patch.sh
+$(dirname $(readlink -e $0))/poll-pw $resource_type $project $SINCE_FILE $(dirname $(readlink -e $0))/test-series.sh

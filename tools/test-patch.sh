@@ -2,7 +2,7 @@
 
 function print_usage() {
 	cat <<- END_OF_HELP
-	usage: $(basename $0) <patchwork_id>
+	usage: $(basename $0) <patch_id>
 
 	Test one patch.
 	END_OF_HELP
