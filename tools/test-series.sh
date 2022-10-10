@@ -1,6 +1,7 @@
 #! /bin/sh -e
 
 URL=http://patches.dpdk.org/api/series/
+BRANCH_PREFIX=s
 
 function print_usage() {
 	cat <<- END_OF_HELP
@@ -16,8 +17,8 @@ if [ $# -lt 1 ]; then
 	exit 1
 fi
 
-if [ -z "$DPDK_DIR" ]; then
-	printf 'missing environment variable: $DPDK_DIR\n'
+if [ -z "$DPDK_HOME" ]; then
+	printf 'missing environment variable: $DPDK_HOME\n'
 	exit 1
 fi
 
@@ -38,5 +39,29 @@ if [ -z "$(echo $ids | tr -d '\n')" ]; then
 fi
 
 for id in $ids ; do
-	$(dirname $(readlink -e $0))/download-patch.sh $id > $patches_dir/$id.patch
+	$(dirname $(readlink -e $0))/download-patch.sh -g $id > $patches_dir/$id.patch
 done
+
+cd $DPDK_HOME
+
+git checkout main
+
+new_branch=$BRANCH_PREFIX-$series_id
+ret=`git branch --list $new_branch`
+if [ ! -z "$ret" ]; then
+	git branch -d $new_branch
+fi
+git checkout -b $new_branch
+
+for patch in `ls $patches_dir |sort`
+do
+	git am $patches_dir/$patch
+done
+
+rm -rf build
+
+meson build
+
+meson test -C build --suite DPDK:fast-tests
+
+cd -

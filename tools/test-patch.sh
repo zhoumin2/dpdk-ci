@@ -1,5 +1,7 @@
 #! /bin/sh -e
 
+BRANCH_PREFIX=p
+
 function print_usage() {
 	cat <<- END_OF_HELP
 	usage: $(basename $0) <patch_id>
@@ -21,8 +23,8 @@ if [ $# -lt 1 ]; then
 	exit 1
 fi
 
-if [ -z "$DPDK_DIR" ]; then
-	printf 'missing environment variable: $DPDK_DIR\n'
+if [ -z "$DPDK_HOME" ]; then
+	printf 'missing environment variable: $DPDK_HOME\n'
 	exit 1
 fi
 
@@ -43,19 +45,17 @@ if [ ! -s $patch_email ]; then
 	exit 1
 fi
 
-cd $DPDK_DIR
+cd $DPDK_HOME
 
 git checkout main
 check_error "git checkout to main failed!"
 
-ret=`git branch --list $patch_id`
+new_branch=$BRANCH_PREFIX-$patch_id
+ret=`git branch --list $new_branch`
 if [ ! -z "$ret" ] ; then
-	git branch -d $patch_id
-	check_error "git branch -d $patch_id failed!"
+	git branch -d $new_branch
 fi
-
-git checkout -b $patch_id
-check_error "git checkout to $patch_id failed!"
+git checkout -b $new_branch
 
 git am $patch_email
 check_error "git am $patch_email failed!"

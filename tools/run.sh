@@ -49,7 +49,7 @@ setup () {
 		init_last
 	fi
 
-	cd $DPDK_DIR
+	cd $DPDK_HOME
 	git checkout main
 	cd -
 }
@@ -71,11 +71,11 @@ if [ $# -lt 2 ] ; then
 	exit 1
 fi
 
-DPDK_DIR=$1
+DPDK_HOME=$1
 SINCE_FILE=$2
 
-if [ ! -d "$DPDK_DIR" ]; then
-	printf "The directory '$DPDK_DIR' doesn't exist.\n\n" >&2
+if [ ! -d "$DPDK_HOME" ]; then
+	printf "The directory '$DPDK_HOME' doesn't exist.\n\n" >&2
 	print_usage >&2
 	exit 1
 fi
@@ -88,5 +88,5 @@ fi
 
 setup
 
-export DPDK_DIR=$DPDK_DIR
+export DPDK_HOME=$DPDK_HOME
 $(dirname $(readlink -e $0))/poll-pw $resource_type $project $SINCE_FILE $(dirname $(readlink -e $0))/test-series.sh
