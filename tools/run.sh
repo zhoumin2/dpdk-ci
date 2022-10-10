@@ -8,7 +8,7 @@ print_usage () {
 	cat <<- END_OF_HELP
 	usage: $(basename $0) [OPTIONS] </path/to/dpdk-repo> </path/to/last.txt>
 
-	Run dpdk ci tests for patches commited since time in last.txt
+	Run dpdk ci tests for patches commited since the time in last.txt
 	END_OF_HELP
 }
 
