@@ -12,6 +12,19 @@ print_usage() {
 	END_OF_HELP
 }
 
+send_series_test_report() {
+	patches_dir=$1
+	status=$2
+	desc=$3
+	report=$4
+
+	first_pwid=`ls -1 $patches_dir |sed 's/\.patch//g' |sort -ug |head -1`
+	last_pwid=`ls -1 $patches_dir |sed 's/\.patch//g' |sort -ug |tail -1`
+	eval $($(dirname $(readlink -e $0))/parse-email.sh $patches_dir/$first_pwid.patch)
+
+	$(dirname $(readlink -e $0))/send-patch-report.sh -t $subject -f $from -p $last_pwid -l "loongarch unit testing" -s $status -d $desc < $report
+}
+
 download_series() {
 	if [ $# -lt 2 ] ; then
 		printf 'missing argument(s) when download series\n'
@@ -65,6 +78,12 @@ fi
 series_id=$1
 patches_dir=$(dirname $(readlink -e $0))/../series_$series_id
 
+apply_log=$DPDK_HOME/build/apply-log.txt
+meson_log=$DPDK_HOME/build/meson-logs/meson-log.txt
+ninja_log=$DPDK_HOME/build/ninja-log.txt
+test_log=$DPDK_HOME/build/meson-logs/testlog.txt
+test_report=$DPDK_HOME/test-report.txt
+
 if $REUSE_PATCH ; then
 	if [ ! -d $patches_dir ] ; then
 		download_series $series_id $patches_dir
@@ -73,9 +92,12 @@ else
 	download_series $series_id $patches_dir
 fi
 
+. $(dirname $(readlink -e $0))/gen_test_report.sh
+
 cd $DPDK_HOME
 
 git checkout main
+base_commit=`git log -1 --format=oneline |awk '{print $1}'`
 
 new_branch=$BRANCH_PREFIX-$series_id
 ret=`git branch --list $new_branch`
@@ -86,13 +108,38 @@ git checkout -b $new_branch
 
 for patch in `ls $patches_dir |sort`
 do
-	git am $patches_dir/$patch
+	git am $patches_dir/$patch > $apply_log
+	if [ ! $? -eq 0 ]; then
+		test_report_series_apply_fail $base_commit $patches_dir $apply_log $test_report
+		send_series_test_report $patches_dir "WARNING" "apply patch failure" $test_report
+	fi
 done
 
 rm -rf build
 
 meson build
+if [ ! $? -eq 0 ]; then
+	test_report_series_meson_build_fail $base_commit $patches_dir $meson_log $test_report
+	send_series_test_report $patches_dir "FAILURE" "meson build failure" $test_report
+	exit 0
+fi
+
+ninja -C build
+if [ ! $? -eq 0 ]; then
+	test_report_series_ninja_build_fail $base_commit $patches_dir $ninja_log $test_report
+	send_series_test_report $patches_dir "FAILURE" "ninja build failure" $test_report
+	exit 0
+echo
 
 meson test -C build --suite DPDK:fast-tests
+fail_num=`tail -n10 $test_log |sed -n 's/^Fail:[[:space:]]\+//p'`
+if [ "$fail_num" != "0" ]; then
+	test_report_series_test_fail $base_commit $patches_dir $test_report
+	send_series_test_report $patches_dir "FAILURE" "Unit Testing FAIL" $test_report
+	exit 0
+fi
+
+test_report_series_test_pass $base_commit $patches_dir $test_report
+send_series_test_report $patches_dir "SUCCESS" "Unit Testing PASS" $test_report
 
 cd -

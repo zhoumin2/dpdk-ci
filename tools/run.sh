@@ -1,5 +1,8 @@
 #! /bin/sh -e
 
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright 2022 Loongson
+
 DEBUG=false
 project=DPDK
 resource_type=series

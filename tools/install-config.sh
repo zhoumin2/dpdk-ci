@@ -1,5 +1,8 @@
 #!/bin/sh -e
 
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright 2022 Loongson
+
 CI_CONFIG_DIR=/etc/dpdk
 PWCLIENTRC_DIR=~/
 
