@@ -3,13 +3,13 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright 2022 Loongson
 
-getheader () # <header_name> <email_file>
+getheader() # <header_name> <email_file>
 {
 	sed "/^$1: */!d;s///;N;s,\n[[:space:]]\+, ,;s,\n.*,,;q" "$2" |
 	sed 's,",\\",g'
 }
 
-write_patch_metainfo() {
+write_patch_info() {
 	submitter=$(getheader X-Patchwork-Submitter "$1")
 	date=$(getheader Date "$1")
 
@@ -31,7 +31,7 @@ test_report_patch_apply_fail() {
 	pwid=$(getheader X-Patchwork-Id $email)
 
 	(
-	write_patch_metainfo $email
+	write_patch_info $email
 	write_base_info $base_commit
 	echo ""
 	echo "Apply patch $pwid failed:"
@@ -85,7 +85,7 @@ test_report_patch_meson_build_fail() {
 	pwid=$(getheader X-Patchwork-Id $email)
 
 	(
-	write_patch_meteinfo $email
+	write_patch_info $email
 	write_base_info $base_commit
 	echo ""
 	echo "$pwid --> meson build failed"
@@ -126,7 +126,7 @@ test_report_patch_test_fail() {
 	pwid=$(getheader X-Patchwork-Id $email)
 
 	(
-	write_patch_meteinfo $email
+	write_patch_info $email
 	write_base_info $base_commit
 	echo ""
 	echo "$pwid --> testing fail"
@@ -142,7 +142,7 @@ test_report_patch_test_pass() {
 	pwid=$(getheader X-Patchwork-Id $email)
 
 	(
-	write_patch_meteinfo $email
+	write_patch_info $email
 	write_base_info $base_commit
 	echo ""
 	echo "$pwid --> testing pass"
@@ -157,8 +157,8 @@ test_report_series_apply_fail() {
 	log=$3
 	report=$4
 
-	first_pwid=`ls -1 $patches_dir |sed 's/\.patch//g' |sort -ug |head -1`
-	last_pwid=`ls -1 $patches_dir |sed 's/\.patch//g' |sort -ug |tail -1`
+	first_pwid=`head -1 $patches_dir/pwid_order.txt`
+	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
 	if [ "$first_pwid" != "$last_pwid" ]; then
 		patchset="$first_pwid-$last_pwid"
 	else
@@ -166,7 +166,7 @@ test_report_series_apply_fail() {
 	fi
 
 	(
-	write_patch_metainfo $patches_dir/$first_pwid.patch
+	write_patch_info $patches_dir/$first_pwid.patch
 	write_base_info $base_commit
 	echo ""
 	echo "Apply patch set $patchset failed:"
@@ -181,8 +181,8 @@ test_report_series_meson_build_fail() {
 	log=$3
 	report=$4
 
-	first_pwid=`ls -1 $patches_dir |sed 's/\.patch//g' |sort -ug |head -1`
-	last_pwid=`ls -1 $patches_dir |sed 's/\.patch//g' |sort -ug |tail -1`
+	first_pwid=`head -1 $patches_dir/pwid_order.txt`
+	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
 	if [ "$first_pwid" != "$last_pwid" ]; then
 		patchset="$first_pwid-$last_pwid"
 	else
@@ -190,7 +190,7 @@ test_report_series_meson_build_fail() {
 	fi
 
 	(
-	write_patch_meteinfo $email
+	write_patch_info $patches_dir/$first_pwid.patch
 	write_base_info $base_commit
 	echo ""
 	echo "$patchset --> meson build failed"
@@ -209,8 +209,8 @@ test_report_series_ninja_build_fail() {
 	log=$3
 	report=$4
 
-	first_pwid=`ls -1 $patches_dir |sed 's/\.patch//g' |sort -ug |head -1`
-	last_pwid=`ls -1 $patches_dir |sed 's/\.patch//g' |sort -ug |tail -1`
+	first_pwid=`head -1 $patches_dir/pwid_order.txt`
+	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
 	if [ "$first_pwid" != "$last_pwid" ]; then
 		patchset="$first_pwid-$last_pwid"
 	else
@@ -218,7 +218,7 @@ test_report_series_ninja_build_fail() {
 	fi
 
 	(
-	write_patch_meteinfo $email
+	write_patch_info $patches_dir/$first_pwid.patch
 	write_base_info $base_commit
 	echo ""
 	echo "$patchset --> ninja build failed"
@@ -236,8 +236,8 @@ test_report_series_test_fail() {
 	patches_dir=$2
 	report=$3
 
-	first_pwid=`ls -1 $patches_dir |sed 's/\.patch//g' |sort -ug |head -1`
-	last_pwid=`ls -1 $patches_dir |sed 's/\.patch//g' |sort -ug |tail -1`
+	first_pwid=`head -1 $patches_dir/pwid_order.txt`
+	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
 	if [ "$first_pwid" != "$last_pwid" ]; then
 		patchset="$first_pwid-$last_pwid"
 	else
@@ -245,7 +245,7 @@ test_report_series_test_fail() {
 	fi
 
 	(
-	write_patch_meteinfo $email
+	write_patch_info $patches_dir/$first_pwid.patch
 	write_base_info $base_commit
 	echo ""
 	echo "$patchset --> testing fail"
@@ -259,8 +259,8 @@ test_report_series_test_pass() {
 	patches_dir=$2
 	report=$3
 
-	first_pwid=`ls -1 $patches_dir |sed 's/\.patch//g' |sort -ug |head -1`
-	last_pwid=`ls -1 $patches_dir |sed 's/\.patch//g' |sort -ug |tail -1`
+	first_pwid=`head -1 $patches_dir/pwid_order.txt`
+	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
 	if [ "$first_pwid" != "$last_pwid" ]; then
 		patchset="$first_pwid-$last_pwid"
 	else
@@ -268,7 +268,7 @@ test_report_series_test_pass() {
 	fi
 
 	(
-	write_patch_meteinfo $email
+	write_patch_info $patches_dir/$first_pwid.patch
 	write_base_info $base_commit
 	echo ""
 	echo "$patchset --> testing pass"

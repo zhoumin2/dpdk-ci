@@ -58,7 +58,7 @@ setup () {
 }
 
 
-while getopts h:d arg ; do
+while getopts hd arg ; do
 	case $arg in
 		d ) DEBUG=true ;;
 		h ) print_usage ; exit 0 ;;

@@ -1,8 +1,13 @@
 #! /bin/sh -e
 
-URL=http://patches.dpdk.org/api/series/
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright 2022 Loongson
+
 BRANCH_PREFIX=s
 REUSE_PATCH=false
+
+parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
+send_patch_report=$(dirname $(readlink -e $0))/../tools/send-patch-report.sh
 
 print_usage() {
 	cat <<- END_OF_HELP
@@ -18,43 +23,14 @@ send_series_test_report() {
 	desc=$3
 	report=$4
 
-	first_pwid=`ls -1 $patches_dir |sed 's/\.patch//g' |sort -ug |head -1`
-	last_pwid=`ls -1 $patches_dir |sed 's/\.patch//g' |sort -ug |tail -1`
-	eval $($(dirname $(readlink -e $0))/parse-email.sh $patches_dir/$first_pwid.patch)
+	first_pwid=`head -1 $patches_dir/pwid_order.txt`
+	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
+	eval $($parse_email $patches_dir/$first_pwid.patch)
 
-	$(dirname $(readlink -e $0))/send-patch-report.sh -t $subject -f $from -p $last_pwid -l "loongarch unit testing" -s $status -d $desc < $report
+	$send_patch_report -t $subject -f $from -p $last_pwid -l "loongarch unit testing" -s $status -d $desc < $report
 }
 
-download_series() {
-	if [ $# -lt 2 ] ; then
-		printf 'missing argument(s) when download series\n'
-	fi
-
-	series_id=$1
-	save_dir=$2
-
-	if [ ! -d $save_dir ] ; then
-		mkdir $save_dir
-	fi
-
-	echo "$URL/$series_id"
-	#echo `$(wget "$URL/$series_id")`
-	ids=$(wget -q -O - "$URL/$series_id" | jq "try ( .patches )" |jq "try ( .[] .id )")
-	echo $ids
-
-	if [ -z "$(echo $ids | tr -d '\n')" ]; then
-		printf "cannot find patch(es) for series-id: $series_id\n"
-		exit 1
-	fi
-
-	i=1
-	for id in $ids ; do
-		$(dirname $(readlink -e $0))/download-patch.sh -g $id > $save_dir/${i}_$id.patch
-		i=$((i+1))
-	done
-}
-
-while getopts h:r arg ; do
+while getopts hr arg ; do
 	case $arg in
 		r ) REUSE_PATCH=true ;;
 		h ) print_usage ; exit 0 ;;
@@ -86,10 +62,10 @@ test_report=$DPDK_HOME/test-report.txt
 
 if $REUSE_PATCH ; then
 	if [ ! -d $patches_dir ] ; then
-		download_series $series_id $patches_dir
+		$(dirname $(readlink -e $0))/download-series.sh -g $series_id $patches_dir
 	fi
 else
-	download_series $series_id $patches_dir
+	$(dirname $(readlink -e $0))/download-series.sh -g $series_id $patches_dir
 fi
 
 . $(dirname $(readlink -e $0))/gen_test_report.sh
@@ -106,39 +82,59 @@ if [ ! -z "$ret" ]; then
 fi
 git checkout -b $new_branch
 
-for patch in `ls $patches_dir |sort`
+applied=false
+
+while read line
 do
-	git am $patches_dir/$patch > $apply_log
+	id=`echo $line|sed 's/^[[:space:]]*//g;s/[[:space:]]*$//g'`
+	if [ -z "$id" ] ; then
+		continue
+	fi
+
+	git am $patches_dir/$id.patch |tee $apply_log
 	if [ ! $? -eq 0 ]; then
+		echo "apply patch failure"
 		test_report_series_apply_fail $base_commit $patches_dir $apply_log $test_report
 		send_series_test_report $patches_dir "WARNING" "apply patch failure" $test_report
+		exit 0
 	fi
-done
+	applied=true
+done < $patches_dir/pwid_order.txt
+
+if ! applied ; then
+	echo "Cannot apply any patch for series $series_id, please check series directory"
+	echo "Test not be executed!"
+	exit 1
+fi
 
 rm -rf build
 
 meson build
 if [ ! $? -eq 0 ]; then
+	echo "meson build failure"
 	test_report_series_meson_build_fail $base_commit $patches_dir $meson_log $test_report
 	send_series_test_report $patches_dir "FAILURE" "meson build failure" $test_report
 	exit 0
 fi
 
-ninja -C build
+ninja -C build |tee $ninja_log
 if [ ! $? -eq 0 ]; then
+	echo "ninja build failure"
 	test_report_series_ninja_build_fail $base_commit $patches_dir $ninja_log $test_report
 	send_series_test_report $patches_dir "FAILURE" "ninja build failure" $test_report
 	exit 0
-echo
+fi
 
-meson test -C build --suite DPDK:fast-tests
+meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 3
 fail_num=`tail -n10 $test_log |sed -n 's/^Fail:[[:space:]]\+//p'`
 if [ "$fail_num" != "0" ]; then
+	echo "unit testing fail"
 	test_report_series_test_fail $base_commit $patches_dir $test_report
 	send_series_test_report $patches_dir "FAILURE" "Unit Testing FAIL" $test_report
 	exit 0
 fi
 
+echo "unit testing pass"
 test_report_series_test_pass $base_commit $patches_dir $test_report
 send_series_test_report $patches_dir "SUCCESS" "Unit Testing PASS" $test_report
 

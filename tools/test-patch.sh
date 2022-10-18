@@ -6,6 +6,9 @@
 BRANCH_PREFIX=p
 REUSE_PATCH=false
 
+parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
+send_patch_report=$(dirname $(readlink -e $0))/../tools/send-patch-report.sh
+
 print_usage() {
 	cat <<- END_OF_HELP
 	usage: $(basename $0) [OPTIONS] <patch_id>
@@ -20,12 +23,12 @@ send_patch_test_report() {
 	desc=$3
 	report=$4
 
-	eval $($(dirname $(readlink -e $0))/parse-email.sh $patch_email)
+	eval $($parse_email $patch_email)
 
-	$(dirname $(readlink -e $0))/send-patch-report.sh -t $subject -f $from -p $pwid -l "loongarch unit testing" -s $status -d $desc < $report
+	$send_patch_report -t $subject -f $from -p $pwid -l "loongarch unit testing" -s $status -d $desc < $report
 }
 
-while getopts h:r arg ; do
+while getopts hr arg ; do
 	case $arg in
 		r ) REUSE_PATCH=true ;;
 		h ) print_usage ; exit 0 ;;
@@ -88,8 +91,9 @@ if [ ! -z "$ret" ] ; then
 fi
 git checkout -b $new_branch
 
-git am $patch_email > $apply_log
+git am $patch_email |tee $apply_log
 if [ ! $? -eq 0 ]; then
+	echo "apply patch failure"
 	test_report_patch_apply_fail $base_commit $patch_email $apply_log $test_report
 	send_patch_test_report $patch_email "WARNING" "apply patch failure" $test_report
 	exit 0
@@ -99,26 +103,30 @@ rm -rf build
 
 meson build
 if [ ! $? -eq 0 ]; then
+	echo "meson build failure"
 	test_report_patch_meson_build_fail $base_commit $patch_email $meson_log $test_report
 	send_patch_test_report $patch_email "FAILURE" "meson build failure" $test_report
 	exit 0
 fi
 
-ninja -C build > $ninja_log
+ninja -C build |tee $ninja_log
 if [ ! $? -eq 0 ]; then
+	echo "ninja build failure"
 	test_report_patch_ninja_build_fail $base_commit $patch_email $ninja_log $test_report
 	send_patch_test_report $patch_email "FAILURE" "ninja build failure" $test_report
 	exit 0
-echo
+fi
 
-meson test -C build --suite DPDK:fast-tests
+meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 3
 fail_num=`tail -n10 $test_log |sed -n 's/^Fail:[[:space:]]\+//p'`
 if [ "$fail_num" != "0" ]; then
+	echo "unit testing fail"
 	test_report_patch_test_fail $base_commit $patch_email $test_report
 	send_patch_test_report $patch_email "FAILURE" "Unit Testing FAIL" $test_report
 	exit 0
 fi
 
+echo "unit testing pass"
 test_report_patch_test_pass $base_commit $patch_email $test_report
 send_patch_test_report $patch_email "PASS" "Unit Testing PASS" $test_report
 
