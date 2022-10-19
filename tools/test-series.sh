@@ -9,6 +9,9 @@ REUSE_PATCH=false
 parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
 send_patch_report=$(dirname $(readlink -e $0))/../tools/send-patch-report.sh
 
+export LC="en_US.UTF-8"
+export LANG="en_US.UTF-8"
+
 print_usage() {
 	cat <<- END_OF_HELP
 	usage: $(basename $0) [OPTIONS] <series_id>
@@ -25,9 +28,11 @@ send_series_test_report() {
 
 	first_pwid=`head -1 $patches_dir/pwid_order.txt`
 	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
-	eval $($parse_email $patches_dir/$first_pwid.patch)
+	eval $($parse_email $patches_dir/$last_pwid.patch)
 
-	$send_patch_report -t $subject -f $from -p $last_pwid -l "loongarch unit testing" -s $status -d $desc < $report
+	from="514762755@qq.com"
+	$send_patch_report -t "$subject" -f "$from" -m "$msgid" -p "$last_pwid" \
+		-l "loongarch unit testing" -s "$status" -d "$desc" < $report
 }
 
 while getopts hr arg ; do
@@ -54,7 +59,7 @@ fi
 series_id=$1
 patches_dir=$(dirname $(readlink -e $0))/../series_$series_id
 
-apply_log=$DPDK_HOME/build/apply-log.txt
+apply_log=$DPDK_HOME/apply-log.txt
 meson_log=$DPDK_HOME/build/meson-logs/meson-log.txt
 ninja_log=$DPDK_HOME/build/ninja-log.txt
 test_log=$DPDK_HOME/build/meson-logs/testlog.txt
@@ -91,8 +96,9 @@ do
 		continue
 	fi
 
-	git am $patches_dir/$id.patch |tee $apply_log
-	if [ ! $? -eq 0 ]; then
+	rm -rf $apply_log
+	git am $patches_dir/$id.patch 2>&1 |tee $apply_log
+	if cat $apply_log | grep -q "git am --abort" ; then
 		echo "apply patch failure"
 		test_report_series_apply_fail $base_commit $patches_dir $apply_log $test_report
 		send_series_test_report $patches_dir "WARNING" "apply patch failure" $test_report
@@ -101,7 +107,7 @@ do
 	applied=true
 done < $patches_dir/pwid_order.txt
 
-if ! applied ; then
+if ! $applied ; then
 	echo "Cannot apply any patch for series $series_id, please check series directory"
 	echo "Test not be executed!"
 	exit 1

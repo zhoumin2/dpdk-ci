@@ -98,7 +98,7 @@ else
 	# send private report
 	(
 		writeheaders "Re: $title" "$msgid" "$from"
-		writeheadlines "$label" "$status" "$desc"
+		writeheadlines "$label" "$status" "$desc" "$pwid"
 		echo "$report"
 	) | $sendmail -t
 fi
