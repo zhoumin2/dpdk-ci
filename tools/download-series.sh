@@ -38,16 +38,29 @@ if [ ! -d $save_dir ] ; then
 	mkdir $save_dir
 fi
 
-echo "request: $URL/$series_id"
-#echo `$(wget "$URL/$series_id")`
-ids=$(wget -q -O - "$URL/$series_id" | jq "try ( .patches )" |jq "try ( .[] .id )")
-echo "pwid(s) for series $series_id: $ids"
-echo "$ids" > $save_dir/pwid_order.txt
-
-if [ -z "$(echo $ids | tr -d '\n')" ]; then
-	printf "cannot find patch(es) for series-id: $series_id\n"
+url="$URL/$series_id"
+echo "$(basename $0): request "$url""
+resp=`wget -q -O - "$url"`
+if [ ! $? -eq 0 ] ; then
+	echo "wget "$url" failed"
+	echo "$resp"
 	exit 1
 fi
+
+ids=$(echo "$resp" | jq "try ( .patches )" |jq "try ( .[] .id )")
+if [ ! $? -eq 0 ] ; then
+	echo "jq handles failed"
+	echo "$resp"
+	exit 1
+fi
+
+if [ -z "$(echo $ids | tr -d '\n')" ] ; then
+	echo "cannot get pwid(s) for series $series"
+	exit 1
+fi
+
+echo "pwid(s) for series $series_id: $(echo $ids | tr '\n' ' ')"
+echo "$ids" > $save_dir/pwid_order.txt
 
 for id in $ids ; do
 	$(dirname $(readlink -e $0))/download-patch.sh $g_opt $id > $save_dir/$id.patch

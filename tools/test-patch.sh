@@ -8,6 +8,7 @@ REUSE_PATCH=false
 
 parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
 send_patch_report=$(dirname $(readlink -e $0))/../tools/send-patch-report.sh
+download_patch=$(dirname $(readlink -e $0))/../tools/download-patch.sh
 
 print_usage() {
 	cat <<- END_OF_HELP
@@ -25,7 +26,10 @@ send_patch_test_report() {
 
 	eval $($parse_email $patch_email)
 
-	$send_patch_report -t $subject -f $from -p $pwid -l "loongarch unit testing" -s $status -d $desc < $report
+	from="514762755@qq.com"
+	echo "send test report for patch $pwid to $from"
+	$send_patch_report -t "$subject" -f "$from" -m "$msgid" -p "$pwid" \
+		-l "loongarch unit testing" -s "$status" -d "$desc" < $report
 }
 
 while getopts hr arg ; do
@@ -65,10 +69,10 @@ test_report=$DPDK_HOME/test-report.txt
 
 if $REUSE_PATCH ; then
 	if [ ! -f $patch_email ]; then
-		$(dirname $(readlink -e $0))/download-patch.sh $patch_id > $patch_email
+		$download_patch -g $patch_id > $patch_email
 	fi
 else
-	$(dirname $(readlink -e $0))/download-patch.sh $patch_id > $patch_email
+	$download_patch -g $patch_id > $patch_email
 fi
 echo "$($(dirname $(readlink -e $0))/filter-patch-email.sh < $patch_email)" > $patch_email
 
@@ -81,8 +85,15 @@ fi
 
 cd $DPDK_HOME
 
+if git status | grep -q "git am --abort" ; then
+       git am --abort
+fi
+
 git checkout main
+git pull --rebase
 base_commit=`git log -1 --format=oneline |awk '{print $1}'`
+
+if false ; then
 
 new_branch=$BRANCH_PREFIX-$patch_id
 ret=`git branch --list $new_branch`
@@ -91,8 +102,9 @@ if [ ! -z "$ret" ] ; then
 fi
 git checkout -b $new_branch
 
-git am $patch_email |tee $apply_log
-if [ ! $? -eq 0 ]; then
+rm -rf $apply_log
+git am $patch_email 2>&1 |tee $apply_log
+if cat $apply_log | grep -q "git am --abort" ; then
 	echo "apply patch failure"
 	test_report_patch_apply_fail $base_commit $patch_email $apply_log $test_report
 	send_patch_test_report $patch_email "WARNING" "apply patch failure" $test_report
@@ -117,7 +129,10 @@ if [ ! $? -eq 0 ]; then
 	exit 0
 fi
 
-meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 3
+fi
+
+meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 6
+echo "test done!"
 fail_num=`tail -n10 $test_log |sed -n 's/^Fail:[[:space:]]\+//p'`
 if [ "$fail_num" != "0" ]; then
 	echo "unit testing fail"
@@ -128,6 +143,6 @@ fi
 
 echo "unit testing pass"
 test_report_patch_test_pass $base_commit $patch_email $test_report
-send_patch_test_report $patch_email "PASS" "Unit Testing PASS" $test_report
+send_patch_test_report $patch_email "SUCCESS" "Unit Testing PASS" $test_report
 
 cd -
