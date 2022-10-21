@@ -15,6 +15,7 @@ print_usage () {
 	        -f from     sender of the patch email
 	        -m msgid    id of the patch email
 	        -p pwid     id of the patch in patchwork (retrieved from msgid otherwise)
+	        -r pwids    ids range of the series
 	        -o listid   origin of the patch
 	        -l label    title of the test (slug formatted)
 	        -s status   one of these test results: SUCCESS, WARNING, FAILURE
@@ -31,16 +32,18 @@ unset title
 unset from
 unset msgid
 unset pwid
+unset pwids
 unset listid
 unset label
 unset status
 unset desc
-while getopts d:f:hl:m:o:p:s:t: arg ; do
+while getopts d:f:hl:m:o:p:r:s:t: arg ; do
 	case $arg in
 		t ) title=$OPTARG ;;
 		f ) from=$OPTARG ;;
 		m ) msgid=$OPTARG ;;
 		p ) pwid=$OPTARG ;;
+		r ) pwids=$OPTARG ;;
 		o ) listid=$OPTARG ;;
 		l ) label=$(echo $OPTARG | sed 's,[[:space:]]\+,-,g') ;;
 		s ) status=$OPTARG ;;
@@ -49,6 +52,11 @@ while getopts d:f:hl:m:o:p:s:t: arg ; do
 		? ) print_usage >&2 ; exit 1 ;;
 	esac
 done
+if [ -z "$pwids" ] ; then
+	printf "missing arugment for pwids\n"
+	print_usage >&2
+	exit 1
+fi
 shift $(($OPTIND - 1))
 if [ -t 0 ] ; then
 	printf 'nothing to read on stdin\n\n' >&2
@@ -91,7 +99,7 @@ if echo "$listid" | grep -q 'dev.dpdk.org' ; then
 	[ "$status" = 'SUCCESS' ] && cc='' || cc="$from"
 	(
 	#writeheaders "|$status| pw$pwid $subject" "$msgid" 'test-report@dpdk.org' "$cc"
-	writeheaders "|$status| pw$pwid $subject" "$msgid" "$cc"
+	writeheaders "|$status| pw$pwids $subject" "$msgid" "$from" "$cc"
 	writeheadlines "$label" "$status" "$desc" "$pwid"
 	echo "$report"
 	) | $sendmail -t

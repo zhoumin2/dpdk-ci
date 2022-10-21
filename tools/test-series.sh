@@ -7,7 +7,7 @@ BRANCH_PREFIX=s
 REUSE_PATCH=false
 
 parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
-send_patch_report=$(dirname $(readlink -e $0))/../tools/send-patch-report.sh
+send_series_report=$(dirname $(readlink -e $0))/../tools/send-series-report.sh
 download_series=$(dirname $(readlink -e $0))/../tools/download-series.sh
 
 export LC="en_US.UTF-8"
@@ -30,12 +30,18 @@ send_series_test_report() {
 
 	first_pwid=`head -1 $patches_dir/pwid_order.txt`
 	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
+	pwids=$first_pwid
+	if [ $first_pwid != $last_pwid ] ; then
+		pwids=$first_pwid-$last_pwid
+	fi
+
 	eval $($parse_email $patches_dir/$last_pwid.patch)
 
 	from="514762755@qq.com"
 	echo "send test report for series $series_id to $from"
-	$send_patch_report -t "$subject" -f "$from" -m "$msgid" -p "$last_pwid" \
-		-l "loongarch unit testing" -s "$status" -d "$desc" < $report
+	$send_series_report -t "$subject" -f "$from" -m "$msgid" -p "$last_pwid" \
+		-r "$pwids" -o "$listid" -l "loongarch unit testing" \
+		-s "$status" -d "$desc" < $report
 }
 
 while getopts hr arg ; do
@@ -70,15 +76,17 @@ test_report=$DPDK_HOME/test-report.txt
 
 if $REUSE_PATCH ; then
 	if [ ! -d $patches_dir ] ; then
-		$download_series -g $series_id $patches_dir
-		if [ ! $? -eq 0 ] ; then
+		failed=false
+		$download_series -g $series_id $patches_dir || failed=true
+		if $failed ; then
 			echo "download series failed"
 			exit 1
 		fi
 	fi
 else
-	$download_series -g $series_id $patches_dir
-	if [ ! $? -eq 0 ] ; then
+	failed=false
+	$download_series -g $series_id $patches_dir || failed=true
+	if $failed ; then
 		echo "download series failed"
 		exit 1
 	fi
@@ -95,8 +103,6 @@ fi
 git checkout main
 git pull --rebase
 base_commit=`git log -1 --format=oneline |awk '{print $1}'`
-
-if false ; then
 
 new_branch=$BRANCH_PREFIX-$series_id
 ret=`git branch --list $new_branch`
@@ -132,27 +138,30 @@ fi
 
 rm -rf build
 
-meson build
-if [ ! $? -eq 0 ]; then
+failed=false
+meson build || failed=true
+if $failed ; then
 	echo "meson build failure"
 	test_report_series_meson_build_fail $base_commit $patches_dir $meson_log $test_report
 	send_series_test_report $series_id $patches_dir "FAILURE" "meson build failure" $test_report
 	exit 0
 fi
 
-ninja -C build |tee $ninja_log
-if [ ! $? -eq 0 ]; then
+failed=false
+ninja -C build &> $ninja_log || failed=true
+if $failed ; then
 	echo "ninja build failure"
 	test_report_series_ninja_build_fail $base_commit $patches_dir $ninja_log $test_report
 	send_series_test_report $series_id $patches_dir "FAILURE" "ninja build failure" $test_report
 	exit 0
 fi
 
-fi
-meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 6
+failed=false
+meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 7 || failed=true
 echo "test done!"
-fail_num=`tail -n10 $test_log |sed -n 's/^Fail:[[:space:]]\+//p'`
-if [ "$fail_num" != "0" ]; then
+#fail_num=$(tail -n10 $test_log |sed -n 's/^Fail:[[:space:]]\+//p')
+#if [ "$fail_num" != "0" ]; then
+if $failed ; then
 	echo "unit testing fail"
 	test_report_series_test_fail $base_commit $patches_dir $test_report
 	send_series_test_report $series_id $patches_dir "FAILURE" "Unit Testing FAIL" $test_report

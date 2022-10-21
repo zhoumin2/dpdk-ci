@@ -6,10 +6,10 @@
 BRANCH_PREFIX=s
 
 parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
-send_patch_report=$(dirname $(readlink -e $0))/../tools/send-patch-report.sh
+send_series_report=$(dirname $(readlink -e $0))/../tools/send-series-report.sh
 download_series=$(dirname $(readlink -e $0))/../tools/download-series.sh
 
-series_id=25338
+series_id=24969
 patches_dir=$(dirname $(readlink -e $0))/../series_$series_id
 
 apply_log=$DPDK_HOME/apply-log.txt
@@ -30,12 +30,18 @@ send_series_test_report() {
 
 	first_pwid=`head -1 $patches_dir/pwid_order.txt`
 	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
+	pwids=$first_pwid
+	if [ $first_pwid != $last_pwid ] ; then
+		pwids=$first_pwid-$last_pwid
+	fi
+
 	eval $($parse_email $patches_dir/$last_pwid.patch)
 
 	from="514762755@qq.com"
 	echo "send test report for series $series_id to $from"
-	$send_patch_report -t "$subject" -f "$from" -m "$msgid" -p "$last_pwid" \
-		-l "loongarch unit testing" -s "$status" -d "$desc" < $report
+	$send_series_report -t "$subject" -f "$from" -m "$msgid" -p "$last_pwid" \
+		-r "$pwids" -o "$listid" -l "loongarch unit testing" \
+		-s "$status" -d "$desc" < $report
 }
 
 apply_patches() {
@@ -74,8 +80,12 @@ apply_patches() {
 }
 
 meson_build() {
-	meson build
-	if [ ! $? -eq 0 ]; then
+
+	rm -rf build
+
+	failed=false
+	meson build || failed=true
+	if $failed ; then
 		echo "meson build failure"
 		test_report_series_meson_build_fail $base_commit $patches_dir $meson_log $test_report
 		send_series_test_report $series_id $patches_dir "FAILURE" "meson build failure" $test_report
@@ -84,8 +94,9 @@ meson_build() {
 }
 
 ninja_build() {
-	ninja -C build |tee $ninja_log
-	if [ ! $? -eq 0 ]; then
+	failed=false
+	ninja -C build |tee $ninja_log || failed=true
+	if $failed ; then
 		echo "ninja build failure"
 		test_report_series_ninja_build_fail $base_commit $patches_dir $ninja_log $test_report
 		send_series_test_report $series_id $patches_dir "FAILURE" "ninja build failure" $test_report
@@ -94,9 +105,12 @@ ninja_build() {
 }
 
 meson_test() {
-	#meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 6
-	fail_num=`tail -n10 $test_log |sed -n 's/^Fail:[[:space:]]\+//p'`
-	if [ "$fail_num" != "0" ]; then
+	failed=false
+	meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 7 || failed=true
+	echo "test done!"
+	#fail_num=$(tail -n10 $test_log |sed -n 's/^Fail:[[:space:]]\+//p')
+	#if [ $failed -a "$fail_num" != "0" ]; then
+	if $failed ; then
 		echo "unit testing fail"
 		test_report_series_test_fail $base_commit $patches_dir $test_report
 		send_series_test_report $series_id $patches_dir "FAILURE" "Unit Testing FAIL" $test_report
@@ -116,18 +130,25 @@ if [ -z "$DPDK_HOME" ]; then
 fi
 
 if [ ! -d $patches_dir ] ; then
-	$download_series -g $series_id $patches_dir
+	failed=false
+	$download_series -g $series_id $patches_dir || failed=true
+	if $failed ; then
+		echo "download series $series_id failed"
+		exit 1;
+	fi
+
 fi
 
 cd $DPDK_HOME
 
-#git checkout la-base
-git checkout main
+git checkout la-base
+#git checkout main
 base_commit=`git log -1 --format=oneline |awk '{print $1}'`
 
+
 #apply_patches
-#meson_build
+meson_build
 #ninja_build
-meson_test
+#meson_test
 
 cd -

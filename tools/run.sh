@@ -91,5 +91,5 @@ fi
 
 setup
 
-export DPDK_HOME=$DPDK_HOME
+export DPDK_HOME
 $(dirname $(readlink -e $0))/poll-pw $resource_type $project $SINCE_FILE $(dirname $(readlink -e $0))/test-series.sh

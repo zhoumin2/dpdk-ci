@@ -66,8 +66,9 @@ while true ; do
 		echo $url
 	fi
 
-	resp=`curl -s $url`
-	if [ ! $? -eq 0 ] ; then
+	failed=false
+	resp=$(curl -s $url) || failed=true
+	if $failed ; then
 		if $verbose ; then
 			echo "curl -s "$url" failed"
 			echo "$resp"
@@ -75,9 +76,10 @@ while true ; do
 		exit 1
 	fi
 
+	failed=false
 	ids=$(echo "$resp" | jq "try ( .[] | select( .project.name == \"DPDK\" ) )" |
-		jq "try ( .payload.patch.id )")
-	if [ ! $? -eq 0 ] ; then
+		jq "try ( .payload.patch.id )") || failed=true
+	if $failed ; then
 		if $verbose ; then
 			echo "jq handles failed"
 			echo "$resp"

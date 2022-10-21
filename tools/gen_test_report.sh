@@ -23,23 +23,6 @@ write_base_info() {
 	echo "  CommitID: $1"
 }
 
-test_report_patch_apply_fail() {
-	base_commit=$1
-	email=$2
-	log=$3
-	report=$4
-	pwid=$(getheader X-Patchwork-Id $email)
-
-	(
-	write_patch_info $email
-	write_base_info $base_commit
-	echo ""
-	echo "Apply patch $pwid failed:"
-	echo ""
-	cat $log
-	) | cat - > $report
-}
-
 write_env_result_fail() {
 	cat <<- END_OF_HELP
 	Test environment and result as below:
@@ -76,6 +59,61 @@ write_env_result_pass() {
 	END_OF_HELP
 }
 
+write_apply_error_log() {
+	log=$1
+
+	cat $log
+}
+
+write_meson_build_error_log() {
+	log=$1
+
+	echo "Meson build logs:"
+	echo "-------------------------------BEGIN LOGS----------------------------"
+
+	start_print=false
+	while read line ; do
+		if $start_print ; then
+			echo $line
+			continue
+		fi
+
+		if echo $line | grep -q "\--- stderr ---" ; then
+			start_print=true
+			echo $line
+			continue
+		fi
+	done < $log
+
+	echo "-------------------------------END LOGS------------------------------"
+
+}
+
+write_ninja_build_error_log() {
+	log=$1
+
+	echo "Ninja build logs:"
+	echo "-------------------------------BEGIN LOGS----------------------------"
+	tail -n50 $log
+	echo "-------------------------------END LOGS------------------------------"
+}
+
+test_report_patch_apply_fail() {
+	base_commit=$1
+	email=$2
+	log=$3
+	report=$4
+	pwid=$(getheader X-Patchwork-Id $email)
+
+	(
+	write_patch_info $email
+	write_base_info $base_commit
+	echo ""
+	echo "Apply patch $pwid failed:"
+	echo ""
+	write_apply_error_log $log
+	) | cat - > $report
+}
 
 test_report_patch_meson_build_fail() {
 	base_commit=$1
@@ -91,10 +129,7 @@ test_report_patch_meson_build_fail() {
 	echo "$pwid --> meson build failed"
 	echo ""
 	write_env_result_fail
-	echo "Meson build logs:"
-	echo "-------------------------------BEGIN LOGS----------------------------"
-	tail -n25 $log
-	echo "-------------------------------END LOGS------------------------------"
+	write_meson_build_error_log $log
 	) | cat - > $report
 }
 
@@ -112,10 +147,7 @@ test_report_patch_ninja_build_fail() {
 	echo "$pwid --> ninja build failed"
 	echo ""
 	write_env_result_fail
-	echo "Ninja build logs:"
-	echo "-------------------------------BEGIN LOGS----------------------------"
-	cat $log
-	echo "-------------------------------END LOGS------------------------------"
+	write_ninja_build_error_log $log
 	) | cat - > $report
 }
 
@@ -171,7 +203,7 @@ test_report_series_apply_fail() {
 	echo ""
 	echo "Apply patch set $patchset failed:"
 	echo ""
-	cat $log
+	write_apply_error_log $log
 	) | cat - > $report
 }
 
@@ -196,10 +228,7 @@ test_report_series_meson_build_fail() {
 	echo "$patchset --> meson build failed"
 	echo ""
 	write_env_result_fail
-	echo "Meson build logs:"
-	echo "-------------------------------BEGIN LOGS----------------------------"
-	tail -n25 $log
-	echo "-------------------------------END LOGS------------------------------"
+	write_meson_build_error_log $log
 	) | cat - > $report
 }
 
@@ -224,10 +253,7 @@ test_report_series_ninja_build_fail() {
 	echo "$patchset --> ninja build failed"
 	echo ""
 	write_env_result_fail
-	echo "Ninja build logs:"
-	echo "-------------------------------BEGIN LOGS----------------------------"
-	tail -n25 $log
-	echo "-------------------------------END LOGS------------------------------"
+	write_ninja_build_error_log $log
 	) | cat - > $report
 }
 
@@ -273,6 +299,6 @@ test_report_series_test_pass() {
 	echo ""
 	echo "$patchset --> testing pass"
 	echo ""
-	write_env_result_fail
+	write_env_result_pass
 	) | cat - > $report
 }

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright 2022 Loongson
 
-URL=http://patches.dpdk.org/api/series/
+URL=http://patches.dpdk.org/api/series
 
 print_usage() {
 	cat <<- END_OF_HELP
@@ -40,22 +40,25 @@ fi
 
 url="$URL/$series_id"
 echo "$(basename $0): request "$url""
-resp=`wget -q -O - "$url"`
-if [ ! $? -eq 0 ] ; then
+
+failed=false
+resp=$(wget -q -O - "$url") || failed=true
+if $failed ; then
 	echo "wget "$url" failed"
 	echo "$resp"
 	exit 1
 fi
 
-ids=$(echo "$resp" | jq "try ( .patches )" |jq "try ( .[] .id )")
-if [ ! $? -eq 0 ] ; then
+failed=false
+ids=$(echo "$resp" | jq "try ( .patches )" |jq "try ( .[] .id )") || failed=true
+if $failed ; then
 	echo "jq handles failed"
 	echo "$resp"
 	exit 1
 fi
 
 if [ -z "$(echo $ids | tr -d '\n')" ] ; then
-	echo "cannot get pwid(s) for series $series"
+	echo "cannot get pwid(s) for series $series_id"
 	exit 1
 fi
 
