@@ -35,7 +35,7 @@ if [ -z "$series_id" -o -z "$save_dir" ] ; then
 fi
 
 if [ ! -d $save_dir ] ; then
-	mkdir $save_dir
+	mkdir -p $save_dir
 fi
 
 url="$URL/$series_id"

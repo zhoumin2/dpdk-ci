@@ -10,7 +10,7 @@ send_series_report=$(dirname $(readlink -e $0))/../tools/send-series-report.sh
 download_series=$(dirname $(readlink -e $0))/../tools/download-series.sh
 
 series_id=24969
-patches_dir=$(dirname $(readlink -e $0))/../series_$series_id
+patches_dir=$(dirname $(readlink -e $0))/../series/$series_id
 
 apply_log=$DPDK_HOME/apply-log.txt
 meson_log=$DPDK_HOME/build/meson-logs/meson-log.txt
@@ -32,7 +32,7 @@ check_patch_check() {
 		return;
 	fi
 
-	if [ ! -z "$(echo "$contexts" | grep $label)" ] ; then
+	if [ ! -z "$(echo "$contexts" | grep -qi $label)" ] ; then
 	      echo "test report for $pwid from $label existed!"
 	      echo "test not execute."
 	      exit 0
