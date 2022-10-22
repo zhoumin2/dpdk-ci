@@ -18,6 +18,24 @@ print_usage() {
 	END_OF_HELP
 }
 
+check_patch_check() {
+	pwid=$1
+	label="loongarch"
+
+	failed=false
+	contexts=$($get_patch_check $pwid) || failed=true
+	echo "contexts for $pwid: $contexts"
+	if $failed ; then
+		return;
+	fi
+
+	if [ ! -z "$(echo "$contexts" | grep $label)" ] ; then
+	      echo "test report for $pwid from $label existed!"
+	      echo "test not execute."
+	      exit 0
+	fi
+}
+
 send_patch_test_report() {
 	patch_email=$1
 	status=$2
@@ -25,6 +43,8 @@ send_patch_test_report() {
 	report=$4
 
 	eval $($parse_email $patch_email)
+
+	check_patch_check $pwid
 
 	from="514762755@qq.com"
 	echo "send test report for patch $pwid to $from"
@@ -82,7 +102,10 @@ if [ ! -s $patch_email ]; then
 	exit 1
 fi
 
-. $(dirname $(readlink -e $0))/gen_test_report.sh
+last_pwid=`tail -1 $patches_dir/pwid_order.txt`
+check_patch_check $last_pwid
+
+. $(dirname $(readlink -e $0))/gen-test-report.sh
 
 cd $DPDK_HOME
 

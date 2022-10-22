@@ -21,6 +21,24 @@ test_report=$DPDK_HOME/test-report.txt
 export LC="en_US.UTF-8"
 export LANG="en_US.UTF-8"
 
+check_patch_check() {
+	pwid=$1
+	label="loongarch"
+
+	failed=false
+	contexts=$($get_patch_check $pwid) || failed=true
+	echo "contexts for $pwid: $contexts"
+	if $failed ; then
+		return;
+	fi
+
+	if [ ! -z "$(echo "$contexts" | grep $label)" ] ; then
+	      echo "test report for $pwid from $label existed!"
+	      echo "test not execute."
+	      exit 0
+	fi
+}
+
 send_series_test_report() {
 	series_id=$1
 	patches_dir=$2
@@ -30,6 +48,9 @@ send_series_test_report() {
 
 	first_pwid=`head -1 $patches_dir/pwid_order.txt`
 	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
+
+	check_patch_check $last_pwid
+
 	pwids=$first_pwid
 	if [ $first_pwid != $last_pwid ] ; then
 		pwids=$first_pwid-$last_pwid
@@ -122,7 +143,10 @@ meson_test() {
 	send_series_test_report $series_id $patches_dir "SUCCESS" "Unit Testing PASS" $test_report
 }
 
-. $(dirname $(readlink -e $0))/../tools/gen_test_report.sh
+last_pwid=`tail -1 $patches_dir/pwid_order.txt`
+check_patch_check $last_pwid
+
+. $(dirname $(readlink -e $0))/../tools/gen-test-report.sh
 
 if [ -z "$DPDK_HOME" ]; then
 	printf 'missing environment variable: $DPDK_HOME\n'
