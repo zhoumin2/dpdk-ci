@@ -41,7 +41,7 @@ if $verbose ; then
 fi
 if $failed ; then
 	echo "wget $URL failed"
-	echo "resp: $resp"
+	echo "response: $resp"
 	exit 1
 fi
 
@@ -49,7 +49,8 @@ failed=false
 contexts=$(echo "$resp" | jq "try ( .[] | .context )") || failed=true
 if $failed ; then
 	echo "jq handles failed"
-	echo "resp: $resp"
+	echo "requested url: $URL"
+	echo "response: $resp"
 	exit 1
 fi
 

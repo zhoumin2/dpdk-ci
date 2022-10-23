@@ -4,6 +4,8 @@
 # Copyright 2022 Loongson
 
 URL=http://patches.dpdk.org/api/series
+download_patch=$(dirname $(readlink -e $0))/download-patch.sh
+filter_patch_email=$(dirname $(readlink -e $0))/filter-patch-email.sh
 
 print_usage() {
 	cat <<- END_OF_HELP
@@ -66,7 +68,27 @@ echo "pwid(s) for series $series_id: $(echo $ids | tr '\n' ' ')"
 echo "$ids" > $save_dir/pwid_order.txt
 
 for id in $ids ; do
-	$(dirname $(readlink -e $0))/download-patch.sh $g_opt $id > $save_dir/$id.patch
+	email=$save_dir/$id.patch
+	if [ ! -f $email ] ; then
+		$download_patch $g_opt $id > $email
+	fi
+
+	for try in $(seq 10) ; do
+		lines=$(echo "$($filter_patch_email < $email)" | wc -l)
+		echo "$email lines: $lines"
+		if [ $((lines)) -lt 8 ] ; then
+			echo "download $email"
+			$download_patch $g_opt $id > $email
+		else
+			break
+		fi
+	done
+
+	lines=$(echo "$($filter_patch_email < $email)" | wc -l)
+	if [ $((lines)) -lt 8 ] ; then
+		echo "filter patch email failed: $email"
+		exit 1
+	fi
 done
 
 echo "download series done!"

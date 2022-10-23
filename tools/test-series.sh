@@ -58,6 +58,11 @@ send_series_test_report() {
 	fi
 
 	eval $($parse_email $patches_dir/$last_pwid.patch)
+	if [ -z "$subject" -o -z "$from" -o -z "$msgid" \
+		-o -z "$pwid" -o -z "$listid" ] ; then
+		echo "parse email failed: $patches_dir/$last_pwid.patch"
+		exit 1
+	fi
 
 	from="514762755@qq.com"
 	echo "send test report for series $series_id to $from"

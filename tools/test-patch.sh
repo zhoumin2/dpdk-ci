@@ -9,6 +9,7 @@ REUSE_PATCH=false
 parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
 send_patch_report=$(dirname $(readlink -e $0))/../tools/send-patch-report.sh
 download_patch=$(dirname $(readlink -e $0))/../tools/download-patch.sh
+filter_patch_email=$(dirname $(readlink -e $0))/filter-patch-email.sh
 
 print_usage() {
 	cat <<- END_OF_HELP
@@ -95,9 +96,9 @@ if $REUSE_PATCH ; then
 else
 	$download_patch -g $patch_id > $patch_email
 fi
-echo "$($(dirname $(readlink -e $0))/filter-patch-email.sh < $patch_email)" > $patch_email
 
-if [ ! -s $patch_email ]; then
+lines=$(echo "$($filter_patch_email < $patch_email)" | wc -l)
+if [ $((lines)) -lt 8 ]; then
 	printf "$patch_email is empty\n"
 	exit 1
 fi
