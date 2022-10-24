@@ -112,6 +112,14 @@ write_ninja_build_error_log() {
 	echo "-------------------------------END LOGS------------------------------"
 }
 
+write_test_result() {
+	testlog_json=$1
+	testlog_txt=$2
+
+	echo "Test result details:"
+	$parse_testlog $1 $2
+}
+
 test_report_patch_apply_fail() {
 	base_commit=$1
 	email=$2
@@ -178,6 +186,7 @@ test_report_patch_test_fail() {
 	echo "$pwid --> testing fail"
 	echo ""
 	write_env_result_fail
+	write_test_result $testlog_json $testlog_txt
 	) | cat - > $report
 }
 
@@ -194,6 +203,7 @@ test_report_patch_test_pass() {
 	echo "$pwid --> testing pass"
 	echo ""
 	write_env_result_pass
+	write_test_result $testlog_json $testlog_txt
 	) | cat - > $report
 }
 
@@ -274,7 +284,9 @@ test_report_series_ninja_build_fail() {
 test_report_series_test_fail() {
 	base_commit=$1
 	patches_dir=$2
-	report=$3
+	testlog_json=$3
+	testlog_txt=$4
+	report=$5
 
 	first_pwid=`head -1 $patches_dir/pwid_order.txt`
 	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
@@ -291,13 +303,16 @@ test_report_series_test_fail() {
 	echo "$patchset --> testing fail"
 	echo ""
 	write_env_result_fail
+	write_test_result $testlog_json $testlog_txt
 	) | cat - > $report
 }
 
 test_report_series_test_pass() {
 	base_commit=$1
 	patches_dir=$2
-	report=$3
+	testlog_json=$3
+	testlog_txt=$4
+	report=$5
 
 	first_pwid=`head -1 $patches_dir/pwid_order.txt`
 	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
@@ -314,5 +329,6 @@ test_report_series_test_pass() {
 	echo "$patchset --> testing pass"
 	echo ""
 	write_env_result_pass
+	write_test_result $testlog_json $testlog_txt
 	) | cat - > $report
 }

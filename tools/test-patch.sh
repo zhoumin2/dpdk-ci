@@ -11,6 +11,7 @@ send_patch_report=$(dirname $(readlink -e $0))/../tools/send-patch-report.sh
 download_patch=$(dirname $(readlink -e $0))/../tools/download-patch.sh
 filter_patch_email=$(dirname $(readlink -e $0))/filter-patch-email.sh
 get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
+parse_testlog=$(dirname $(readlink -e $0))/../tools/parse_testlog.py
 
 export LC="en_US.UTF-8"
 export LANG="en_US.UTF-8"
@@ -90,7 +91,8 @@ patch_email=$patches_dir/$patch_id.patch
 apply_log=$DPDK_HOME/apply-log.txt
 meson_log=$DPDK_HOME/build/meson-logs/meson-log.txt
 ninja_log=$DPDK_HOME/build/ninja-log.txt
-test_log=$DPDK_HOME/build/meson-logs/testlog.txt
+testlog_json=$DPDK_HOME/build/meson-logs/testlog.json
+testlog_txt=$DPDK_HOME/build/meson-logs/testlog.txt
 test_report=$DPDK_HOME/test-report.txt
 
 if $REUSE_PATCH ; then
@@ -167,13 +169,13 @@ meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 8 || failed=
 echo "test done!"
 if $failed ; then
 	echo "unit testing fail"
-	test_report_patch_test_fail $base_commit $patch_email $test_report
+	test_report_patch_test_fail $base_commit $patch_email $testlog_json $testlog_txt $test_report
 	send_patch_test_report $patch_email "FAILURE" "Unit Testing FAIL" $test_report
 	exit 0
 fi
 
 echo "unit testing pass"
-test_report_patch_test_pass $base_commit $patch_email $test_report
+test_report_patch_test_pass $base_commit $patch_email $testlog_json $testlog_txt $test_report
 send_patch_test_report $patch_email "SUCCESS" "Unit Testing PASS" $test_report
 
 cd -

@@ -8,6 +8,8 @@ BRANCH_PREFIX=s
 parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
 send_series_report=$(dirname $(readlink -e $0))/../tools/send-series-report.sh
 download_series=$(dirname $(readlink -e $0))/../tools/download-series.sh
+get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
+parse_testlog=$(dirname $(readlink -e $0))/../tools/parse_testlog.py
 
 series_id=24969
 patches_dir=$(dirname $(readlink -e $0))/../series/$series_id
@@ -15,7 +17,8 @@ patches_dir=$(dirname $(readlink -e $0))/../series/$series_id
 apply_log=$DPDK_HOME/apply-log.txt
 meson_log=$DPDK_HOME/build/meson-logs/meson-log.txt
 ninja_log=$DPDK_HOME/build/ninja-log.txt
-test_log=$DPDK_HOME/build/meson-logs/testlog.txt
+testlog_json=$DPDK_HOME/build/meson-logs/testlog.json
+testlog_txt=$DPDK_HOME/build/meson-logs/testlog.txt
 test_report=$DPDK_HOME/test-report.txt
 
 export LC="en_US.UTF-8"
@@ -129,17 +132,15 @@ meson_test() {
 	failed=false
 	meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 8 || failed=true
 	echo "test done!"
-	#fail_num=$(tail -n10 $test_log |sed -n 's/^Fail:[[:space:]]\+//p')
-	#if [ $failed -a "$fail_num" != "0" ]; then
 	if $failed ; then
 		echo "unit testing fail"
-		test_report_series_test_fail $base_commit $patches_dir $test_report
+		test_report_series_test_fail $base_commit $patches_dir $testlog_json $testlog_txt $test_report
 		send_series_test_report $series_id $patches_dir "FAILURE" "Unit Testing FAIL" $test_report
 		exit 0
 	fi
 
 	echo "unit testing pass"
-	test_report_series_test_pass $base_commit $patches_dir $test_report
+	test_report_series_test_pass $base_commit $patches_dir $testlog_json $testlog_txt $test_report
 	send_series_test_report $series_id $patches_dir "SUCCESS" "Unit Testing PASS" $test_report
 }
 
