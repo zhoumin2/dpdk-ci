@@ -148,15 +148,21 @@ do
 	if [ -z "$id" ] ; then
 		continue
 	fi
+	patch_email=$patches_dir/$id.patch
 
 	rm -rf $apply_log
-	git am $patches_dir/$id.patch 2>&1 |tee $apply_log
-	if cat $apply_log | grep -q "git am --abort" ; then
+
+	failed=false
+	git apply --check $patch_email || failed=true
+	if $failed ; then
+		git apply -v $patch_email 2>&1 | tee $apply_log
 		echo "apply patch failure"
 		test_report_series_apply_fail $base_commit $patches_dir $apply_log $test_report
 		send_series_test_report $series_id $patches_dir "WARNING" "apply patch failure" $test_report
 		exit 0
 	fi
+
+	git am $patch_email
 	applied=true
 done < $patches_dir/pwid_order.txt
 
@@ -187,10 +193,8 @@ if $failed ; then
 fi
 
 failed=false
-meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 7 || failed=true
+meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 8 || failed=true
 echo "test done!"
-#fail_num=$(tail -n10 $test_log |sed -n 's/^Fail:[[:space:]]\+//p')
-#if [ "$fail_num" != "0" ]; then
 if $failed ; then
 	echo "unit testing fail"
 	test_report_series_test_fail $base_commit $patches_dir $test_report

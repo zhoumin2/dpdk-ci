@@ -10,6 +10,10 @@ parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
 send_patch_report=$(dirname $(readlink -e $0))/../tools/send-patch-report.sh
 download_patch=$(dirname $(readlink -e $0))/../tools/download-patch.sh
 filter_patch_email=$(dirname $(readlink -e $0))/filter-patch-email.sh
+get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
+
+export LC="en_US.UTF-8"
+export LANG="en_US.UTF-8"
 
 print_usage() {
 	cat <<- END_OF_HELP
@@ -83,14 +87,14 @@ fi
 patch_id=$1
 patch_email=$patches_dir/$patch_id.patch
 
-apply_log=$DPDK_HOME/build/apply-log.txt
+apply_log=$DPDK_HOME/apply-log.txt
 meson_log=$DPDK_HOME/build/meson-logs/meson-log.txt
 ninja_log=$DPDK_HOME/build/ninja-log.txt
 test_log=$DPDK_HOME/build/meson-logs/testlog.txt
 test_report=$DPDK_HOME/test-report.txt
 
 if $REUSE_PATCH ; then
-	if [ ! -f $patch_email ]; then
+	if [ ! -f $patch_email ] ; then
 		$download_patch -g $patch_id > $patch_email
 	fi
 else
@@ -99,12 +103,11 @@ fi
 
 lines=$(echo "$($filter_patch_email < $patch_email)" | wc -l)
 if [ $((lines)) -lt 8 ]; then
-	printf "$patch_email is empty\n"
+	echo "filter patch email failed: $patch_email"
 	exit 1
 fi
 
-last_pwid=`tail -1 $patches_dir/pwid_order.txt`
-check_patch_check $last_pwid
+check_patch_check $patch_id
 
 . $(dirname $(readlink -e $0))/gen-test-report.sh
 
@@ -118,8 +121,6 @@ git checkout main
 git pull --rebase
 base_commit=`git log -1 --format=oneline |awk '{print $1}'`
 
-if false ; then
-
 new_branch=$BRANCH_PREFIX-$patch_id
 ret=`git branch --list $new_branch`
 if [ ! -z "$ret" ] ; then
@@ -128,13 +129,18 @@ fi
 git checkout -b $new_branch
 
 rm -rf $apply_log
-git am $patch_email 2>&1 |tee $apply_log
-if cat $apply_log | grep -q "git am --abort" ; then
+
+failed=false
+git apply --check $patch_email || failed=true
+if $failed ; then
+	git apply -v $patch_email 2>&1 | tee $apply_log
 	echo "apply patch failure"
 	test_report_patch_apply_fail $base_commit $patch_email $apply_log $test_report
 	send_patch_test_report $patch_email "WARNING" "apply patch failure" $test_report
 	exit 0
 fi
+
+git am $patch_email
 
 rm -rf build
 
@@ -156,13 +162,9 @@ if $failed ; then
 	exit 0
 fi
 
-fi
-
 failed=false
-meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 7 || failed=true
+meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 8 || failed=true
 echo "test done!"
-#fail_num=`tail -n10 $test_log |sed -n 's/^Fail:[[:space:]]\+//p'`
-#if [ "$fail_num" != "0" ]; then
 if $failed ; then
 	echo "unit testing fail"
 	test_report_patch_test_fail $base_commit $patch_email $test_report

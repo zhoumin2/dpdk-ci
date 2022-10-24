@@ -94,7 +94,21 @@ write_ninja_build_error_log() {
 
 	echo "Ninja build logs:"
 	echo "-------------------------------BEGIN LOGS----------------------------"
-	tail -n50 $log
+
+	start_print=false
+	while read line ; do
+		if $start_print ; then
+			echo $line
+			continue
+		fi
+
+		if echo $line | grep -q "FAILED:" ; then
+			start_print=true
+			echo $line
+			continue
+		fi
+	done < $log
+
 	echo "-------------------------------END LOGS------------------------------"
 }
 

@@ -127,7 +127,7 @@ ninja_build() {
 
 meson_test() {
 	failed=false
-	meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 7 || failed=true
+	meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 8 || failed=true
 	echo "test done!"
 	#fail_num=$(tail -n10 $test_log |sed -n 's/^Fail:[[:space:]]\+//p')
 	#if [ $failed -a "$fail_num" != "0" ]; then
