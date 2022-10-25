@@ -7,7 +7,7 @@ BRANCH_PREFIX=s
 REUSE_PATCH=false
 
 parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
-send_series_report=$(dirname $(readlink -e $0))/../tools/send-series-report.sh
+send_series_report=$(dirname $(readlink -e $0))/../tools/send-series-report-la.sh
 download_series=$(dirname $(readlink -e $0))/../tools/download-series.sh
 get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
 parse_testlog=$(dirname $(readlink -e $0))/../tools/parse_testlog.py
@@ -65,7 +65,7 @@ send_series_test_report() {
 		exit 1
 	fi
 
-	from="514762755@qq.com"
+	from="zhoumin@loongson.cn"
 	echo "send test report for series $series_id to $from"
 	$send_series_report -t "$subject" -f "$from" -m "$msgid" -p "$last_pwid" \
 		-r "$pwids" -o "$listid" -l "loongarch unit testing" \

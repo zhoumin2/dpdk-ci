@@ -7,7 +7,7 @@ BRANCH_PREFIX=p
 REUSE_PATCH=false
 
 parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
-send_patch_report=$(dirname $(readlink -e $0))/../tools/send-patch-report.sh
+send_patch_report=$(dirname $(readlink -e $0))/../tools/send-patch-report-la.sh
 download_patch=$(dirname $(readlink -e $0))/../tools/download-patch.sh
 filter_patch_email=$(dirname $(readlink -e $0))/filter-patch-email.sh
 get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
@@ -52,7 +52,7 @@ send_patch_test_report() {
 
 	check_patch_check $pwid
 
-	from="514762755@qq.com"
+	from="zhoumin@loongson.cn"
 	echo "send test report for patch $pwid to $from"
 	$send_patch_report -t "$subject" -f "$from" -m "$msgid" -p "$pwid" \
 		-o "$listid" -l "loongarch unit testing" -s "$status" \

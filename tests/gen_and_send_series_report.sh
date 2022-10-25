@@ -6,7 +6,7 @@
 BRANCH_PREFIX=s
 
 parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
-send_series_report=$(dirname $(readlink -e $0))/../tools/send-series-report.sh
+send_series_report=$(dirname $(readlink -e $0))/../tools/send-series-report-la.sh
 download_series=$(dirname $(readlink -e $0))/../tools/download-series.sh
 get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
 parse_testlog=$(dirname $(readlink -e $0))/../tools/parse_testlog.py
@@ -61,7 +61,7 @@ send_series_test_report() {
 
 	eval $($parse_email $patches_dir/$last_pwid.patch)
 
-	from="514762755@qq.com"
+	from="zhoumin@loongson.cn"
 	echo "send test report for series $series_id to $from"
 	$send_series_report -t "$subject" -f "$from" -m "$msgid" -p "$last_pwid" \
 		-r "$pwids" -o "$listid" -l "loongarch unit testing" \
@@ -77,22 +77,27 @@ apply_patches() {
 	git checkout -b $new_branch
 
 	applied=false
-
 	while read line
 	do
 		id=`echo $line|sed 's/^[[:space:]]*//g;s/[[:space:]]*$//g'`
 		if [ -z "$id" ] ; then
 			continue
 		fi
+		patch_email=$patches_dir/$id.patch
 
 		rm -rf $apply_log
-		git am $patches_dir/$id.patch 2>&1 |tee $apply_log
-		if cat $apply_log | grep -q "git am --abort" ; then
+
+		failed=false
+		git apply --check $patch_email || failed=true
+		if $failed ; then
+			git apply -v $patch_email 2>&1 | tee $apply_log
 			echo "apply patch failure"
 			test_report_series_apply_fail $base_commit $patches_dir $apply_log $test_report
 			send_series_test_report $series_id $patches_dir "WARNING" "apply patch failure" $test_report
 			exit 0
 		fi
+
+		git am $patch_email
 		applied=true
 	done < $patches_dir/pwid_order.txt
 
@@ -166,14 +171,13 @@ fi
 
 cd $DPDK_HOME
 
-git checkout la-base
-#git checkout main
+#git checkout la-base
+git checkout main
 base_commit=`git log -1 --format=oneline |awk '{print $1}'`
 
-
-#apply_patches
+apply_patches
 meson_build
-#ninja_build
-#meson_test
+ninja_build
+meson_test
 
 cd -
