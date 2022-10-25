@@ -24,7 +24,7 @@ print_usage () {
 }
 
 . $(dirname $(readlink -e $0))/load-ci-config.sh
-sendmail=${DPDK_CI_MAILER:-/usr/bin/mailx}
+sendmail=${DPDK_CI_MAILER:-/usr/sbin/sendmail}
 pwclient=${DPDK_CI_PWCLIENT:-$(dirname $(readlink -m $0))/pwclient}
 
 passwd_dat=$(dirname $(readlink -e $0))/../.mail_passwd.dat
@@ -104,12 +104,12 @@ if echo "$listid" | grep -q 'dev.dpdk.org' ; then
 	writeheaders "|$status| pw$pwid $subject" "$msgid" "$from" "$cc"
 	writeheadlines "$label" "$status" "$desc" "$pwid"
 	echo "$report"
-	) | $envs $sendmail -n -t
+	) | $sendmail -f"$smtp_user" -t
 else
 	# send private report
 	(
 		writeheaders "Re: $title" "$msgid" "$from"
 		writeheadlines "$label" "$status" "$desc" "$pwid"
 		echo "$report"
-	) | $envs $sendmail -n -t
+	) | $sendmail -f"$smtp_user" -t
 fi
