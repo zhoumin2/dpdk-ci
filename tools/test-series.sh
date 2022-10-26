@@ -12,6 +12,16 @@ download_series=$(dirname $(readlink -e $0))/../tools/download-series.sh
 get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
 parse_testlog=$(dirname $(readlink -e $0))/../tools/parse_testlog.py
 
+status_warning="WARNING"
+status_failure="FAILURE"
+status_success="SUCCESS"
+
+desc_apply_failure="apply patch failure"
+desc_meson_build_failure="meson build failure"
+desc_ninja_build_failure="ninja build failure"
+desc_unit_test_fail="Unit Testing FAIL"
+desc_unit_test_pass="Unit Testing PASS"
+
 export LC="en_US.UTF-8"
 export LANG="en_US.UTF-8"
 
@@ -51,23 +61,28 @@ send_series_test_report() {
 	first_pwid=`head -1 $patches_dir/pwid_order.txt`
 	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
 
-	check_patch_check $last_pwid
+	target_pwid=$last_pwid
+	if [ "$desc" = "$desc_apply_failure" ] ; then
+		target_pwid=$first_pwid
+	fi
+
+	check_patch_check $target_pwid
 
 	pwids=$first_pwid
 	if [ $first_pwid != $last_pwid ] ; then
 		pwids=$first_pwid-$last_pwid
 	fi
 
-	eval $($parse_email $patches_dir/$last_pwid.patch)
+	eval $($parse_email $patches_dir/$target_pwid.patch)
 	if [ -z "$subject" -o -z "$from" -o -z "$msgid" \
 		-o -z "$pwid" -o -z "$listid" ] ; then
-		echo "parse email failed: $patches_dir/$last_pwid.patch"
+		echo "parse email failed: $patches_dir/$target_pwid.patch"
 		exit 1
 	fi
 
 	from="zhoumin@loongson.cn"
 	echo "send test report for series $series_id to $from"
-	$send_series_report -t "$subject" -f "$from" -m "$msgid" -p "$last_pwid" \
+	$send_series_report -t "$subject" -f "$from" -m "$msgid" -p "$target_pwid" \
 		-r "$pwids" -o "$listid" -l "loongarch unit testing" \
 		-s "$status" -d "$desc" < $report
 }
@@ -160,7 +175,7 @@ do
 		git apply -v $patch_email 2>&1 | tee $apply_log
 		echo "apply patch failure"
 		test_report_series_apply_fail $base_commit $patches_dir $apply_log $test_report
-		send_series_test_report $series_id $patches_dir "WARNING" "apply patch failure" $test_report
+		send_series_test_report $series_id $patches_dir $status_warning "$desc_apply_failure" $test_report
 		exit 0
 	fi
 
@@ -181,7 +196,7 @@ meson build || failed=true
 if $failed ; then
 	echo "meson build failure"
 	test_report_series_meson_build_fail $base_commit $patches_dir $meson_log $test_report
-	send_series_test_report $series_id $patches_dir "FAILURE" "meson build failure" $test_report
+	send_series_test_report $series_id $patches_dir $status_failure "$desc_meson_build_failure" $test_report
 	exit 0
 fi
 
@@ -190,7 +205,7 @@ ninja -C build &> $ninja_log || failed=true
 if $failed ; then
 	echo "ninja build failure"
 	test_report_series_ninja_build_fail $base_commit $patches_dir $ninja_log $test_report
-	send_series_test_report $series_id $patches_dir "FAILURE" "ninja build failure" $test_report
+	send_series_test_report $series_id $patches_dir $status_failure "$desc_ninja_build_failure" $test_report
 	exit 0
 fi
 
@@ -200,12 +215,12 @@ echo "test done!"
 if $failed ; then
 	echo "unit testing fail"
 	test_report_series_test_fail $base_commit $patches_dir $testlog_json $testlog_txt $test_report
-	send_series_test_report $series_id $patches_dir "FAILURE" "Unit Testing FAIL" $test_report
+	send_series_test_report $series_id $patches_dir $status_failure "$desc_unit_test_fail" $test_report
 	exit 0
 fi
 
 echo "unit testing pass"
 test_report_series_test_pass $base_commit $patches_dir $testlog_json $testlog_txt $test_report
-send_series_test_report $series_id $patches_dir "SUCCESS" "Unit Testing PASS" $test_report
+send_series_test_report $series_id $patches_dir $status_success "$desc_unit_test_pass" $test_report
 
 cd -
