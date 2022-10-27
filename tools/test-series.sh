@@ -12,6 +12,9 @@ download_series=$(dirname $(readlink -e $0))/../tools/download-series.sh
 get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
 parse_testlog=$(dirname $(readlink -e $0))/../tools/parse_testlog.py
 
+label_compilation="loongarch compilation"
+label_unit_testing="loongarch unit testing"
+
 status_warning="WARNING"
 status_failure="FAILURE"
 status_success="SUCCESS"
@@ -36,28 +39,34 @@ print_usage() {
 
 check_patch_check() {
 	pwid=$1
-	label="loongarch"
+	context=$(echo "$2" | sed 's/ /-/g')
+
+	echo "finding context: "$context" for $pwid ..."
 
 	failed=false
 	contexts=$($get_patch_check $pwid) || failed=true
 	echo "contexts for $pwid: $contexts"
 	if $failed ; then
+		echo "find context "$context" failed"
 		return;
 	fi
 
-	if [ ! -z "$(echo "$contexts" | grep -qi $label)" ] ; then
-	      echo "test report for $pwid from $label existed!"
+	if [ ! -z "$(echo "$contexts" | grep -qi "$context")" ] ; then
+	      echo "test report for $pwid from "$context" existed!"
 	      echo "test not execute."
 	      exit 0
+	else
+	      echo "not found context: "$context""
 	fi
 }
 
 send_series_test_report() {
 	series_id=$1
 	patches_dir=$2
-	status=$3
-	desc=$4
-	report=$5
+	label=$3
+	status=$4
+	desc=$5
+	report=$6
 
 	first_pwid=`head -1 $patches_dir/pwid_order.txt`
 	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
@@ -67,7 +76,7 @@ send_series_test_report() {
 		target_pwid=$first_pwid
 	fi
 
-	check_patch_check $target_pwid
+	check_patch_check $target_pwid "$label"
 
 	pwids=$first_pwid
 	if [ $first_pwid != $last_pwid ] ; then
@@ -84,7 +93,7 @@ send_series_test_report() {
 	from="zhoumin@loongson.cn"
 	echo "send test report for series $series_id to $from"
 	$send_series_report -t "$subject" -f "$from" -m "$msgid" -p "$target_pwid" \
-		-r "$pwids" -o "$listid" -l "loongarch unit testing" \
+		-r "$pwids" -o "$listid" -l "$label" \
 		-s "$status" -d "$desc" < $report
 }
 
@@ -137,8 +146,8 @@ else
 	fi
 fi
 
-last_pwid=`tail -1 $patches_dir/pwid_order.txt`
-check_patch_check $last_pwid
+#last_pwid=`tail -1 $patches_dir/pwid_order.txt`
+#check_patch_check $last_pwid
 
 . $(dirname $(readlink -e $0))/gen-test-report.sh
 
@@ -176,7 +185,7 @@ do
 		git apply -v $patch_email 2>&1 | tee $apply_log
 		echo "apply patch failure"
 		test_report_series_apply_fail $base_commit $patches_dir $apply_log $test_report
-		send_series_test_report $series_id $patches_dir $status_warning "$desc_apply_failure" $test_report
+		send_series_test_report $series_id $patches_dir "$label_compilation" $status_warning "$desc_apply_failure" $test_report
 		exit 0
 	fi
 
@@ -197,7 +206,7 @@ meson build || failed=true
 if $failed ; then
 	echo "meson build failure"
 	test_report_series_meson_build_fail $base_commit $patches_dir $meson_log $test_report
-	send_series_test_report $series_id $patches_dir $status_failure "$desc_meson_build_failure" $test_report
+	send_series_test_report $series_id $patches_dir "$label_compilation" $status_failure "$desc_meson_build_failure" $test_report
 	exit 0
 fi
 
@@ -206,13 +215,13 @@ ninja -C build &> $ninja_log || failed=true
 if $failed ; then
 	echo "ninja build failure"
 	test_report_series_ninja_build_fail $base_commit $patches_dir $ninja_log $test_report
-	send_series_test_report $series_id $patches_dir $status_failure "$desc_ninja_build_failure" $test_report
+	send_series_test_report $series_id $patches_dir "$label_compilation" $status_failure "$desc_ninja_build_failure" $test_report
 	exit 0
 fi
 
 echo "meson & ninja build pass"
 test_report_series_build_pass $base_commit $patches_dir $test_report
-send_series_test_report $series_id $patches_dir $status_success "$desc_build_pass" $test_report
+send_series_test_report $series_id $patches_dir "$label_compilation" $status_success "$desc_build_pass" $test_report
 
 failed=false
 meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 8 || failed=true
@@ -220,12 +229,12 @@ echo "test done!"
 if $failed ; then
 	echo "unit testing fail"
 	test_report_series_test_fail $base_commit $patches_dir $testlog_json $testlog_txt $test_report
-	send_series_test_report $series_id $patches_dir $status_failure "$desc_unit_test_fail" $test_report
+	send_series_test_report $series_id $patches_dir "$label_unit_testing" $status_failure "$desc_unit_test_fail" $test_report
 	exit 0
 fi
 
 echo "unit testing pass"
 test_report_series_test_pass $base_commit $patches_dir $testlog_json $testlog_txt $test_report
-send_series_test_report $series_id $patches_dir $status_success "$desc_unit_test_pass" $test_report
+send_series_test_report $series_id $patches_dir "$label_unit_testing" $status_success "$desc_unit_test_pass" $test_report
 
 cd -

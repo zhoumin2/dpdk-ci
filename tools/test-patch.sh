@@ -13,6 +13,9 @@ filter_patch_email=$(dirname $(readlink -e $0))/filter-patch-email.sh
 get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
 parse_testlog=$(dirname $(readlink -e $0))/../tools/parse_testlog.py
 
+label_compilation="LoongArch compilation"
+label_unit_testing="LoongArch unit testing"
+
 status_warning="WARNING"
 status_failure="FAILURE"
 status_success="SUCCESS"
@@ -37,36 +40,42 @@ print_usage() {
 
 check_patch_check() {
 	pwid=$1
-	label="loongarch"
+	context=$(echo "$2" | sed 's/ /-/g')
+
+	echo "finding context: "$context" for $pwid ..."
 
 	failed=false
 	contexts=$($get_patch_check $pwid) || failed=true
 	echo "contexts for $pwid: $contexts"
 	if $failed ; then
+		echo "find context "$context" failed"
 		return;
 	fi
 
-	if [ ! -z "$(echo "$contexts" | grep -qi $label)" ] ; then
-	      echo "test report for $pwid from $label existed!"
+	if [ ! -z "$(echo "$contexts" | grep -qi "$context")" ] ; then
+	      echo "test report for $pwid from "$context" existed!"
 	      echo "test not execute."
 	      exit 0
+	else
+	      echo "not found context: "$context""
 	fi
 }
 
 send_patch_test_report() {
 	patch_email=$1
-	status=$2
-	desc=$3
-	report=$4
+	label=$2
+	status=$3
+	desc=$4
+	report=$5
 
 	eval $($parse_email $patch_email)
 
-	check_patch_check $pwid
+	check_patch_check $pwid "$label"
 
 	from="zhoumin@loongson.cn"
 	echo "send test report for patch $pwid to $from"
 	$send_patch_report -t "$subject" -f "$from" -m "$msgid" -p "$pwid" \
-		-o "$listid" -l "loongarch unit testing" -s "$status" \
+		-o "$listid" -l "$label" -s "$status" \
 		-d "$desc" < $report
 }
 
@@ -120,7 +129,7 @@ if [ $((lines)) -lt 8 ]; then
 	exit 1
 fi
 
-check_patch_check $patch_id
+#check_patch_check $patch_id
 
 . $(dirname $(readlink -e $0))/gen-test-report.sh
 
@@ -149,7 +158,7 @@ if $failed ; then
 	git apply -v $patch_email 2>&1 | tee $apply_log
 	echo "apply patch failure"
 	test_report_patch_apply_fail $base_commit $patch_email $apply_log $test_report
-	send_patch_test_report $patch_email $status_warning "$desc_apply_failure" $test_report
+	send_patch_test_report $patch_email "$label_compilation" $status_warning "$desc_apply_failure" $test_report
 	exit 0
 fi
 
@@ -162,7 +171,7 @@ meson build || failed=true
 if $failed ; then
 	echo "meson build failure"
 	test_report_patch_meson_build_fail $base_commit $patch_email $meson_log $test_report
-	send_patch_test_report $patch_email $status_failure "$desc_meson_build_failure" $test_report
+	send_patch_test_report $patch_email "$label_compilation" $status_failure "$desc_meson_build_failure" $test_report
 	exit 0
 fi
 
@@ -171,13 +180,13 @@ ninja -C build |tee $ninja_log || failed=true
 if $failed ; then
 	echo "ninja build failure"
 	test_report_patch_ninja_build_fail $base_commit $patch_email $ninja_log $test_report
-	send_patch_test_report $patch_email $status_failure "$desc_ninja_build_failure" $test_report
+	send_patch_test_report $patch_email "$label_compilation" $status_failure "$desc_ninja_build_failure" $test_report
 	exit 0
 fi
 
 echo "meson & ninja build pass"
 test_report_patch_build_pass $base_commit $patch_email $test_report
-send_patch_test_report $patch_email $status_success "$desc_build_pass" $test_report
+send_patch_test_report $patch_email "$label_compilation" $status_success "$desc_build_pass" $test_report
 
 failed=false
 meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 8 || failed=true
@@ -185,12 +194,12 @@ echo "test done!"
 if $failed ; then
 	echo "unit testing fail"
 	test_report_patch_test_fail $base_commit $patch_email $testlog_json $testlog_txt $test_report
-	send_patch_test_report $patch_email $status_failure "$desc_unit_test_fail" $test_report
+	send_patch_test_report $patch_email "$label_unit_testing" $status_failure "$desc_unit_test_fail" $test_report
 	exit 0
 fi
 
 echo "unit testing pass"
 test_report_patch_test_pass $base_commit $patch_email $testlog_json $testlog_txt $test_report
-send_patch_test_report $patch_email $status_success "$desc_unit_test_pass" $test_report
+send_patch_test_report $patch_email "$label_unit_testing" $status_success "$desc_unit_test_pass" $test_report
 
 cd -

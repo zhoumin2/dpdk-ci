@@ -23,7 +23,43 @@ write_base_info() {
 	echo "  CommitID: $1"
 }
 
-write_env_result_fail() {
+write_env_result_compilation_fail() {
+	cat <<- END_OF_HELP
+	Test environment and result as below:
+
+	+---------------------+----------------+
+	|     Environment     | compilation    |
+	+=====================+================+
+	| Loongnix-Server 8.3 | FAIL           |
+	+---------------------+----------------+
+
+	Loongnix-Server 8.3
+	    Kernel: 4.19.190+
+	    Compiler: gcc 8.3
+
+
+	END_OF_HELP
+}
+
+write_env_result_compilation_pass() {
+	cat <<- END_OF_HELP
+	Test environment and result as below:
+
+	+---------------------+----------------+
+	|     Environment     | compilation    |
+	+=====================+================+
+	| Loongnix-Server 8.3 | PASS           |
+	+---------------------+----------------+
+
+	Loongnix-Server 8.3
+	    Kernel: 4.19.190+
+	    Compiler: gcc 8.3
+
+
+	END_OF_HELP
+}
+
+write_env_result_unit_test_fail() {
 	cat <<- END_OF_HELP
 	Test environment and result as below:
 
@@ -41,7 +77,7 @@ write_env_result_fail() {
 	END_OF_HELP
 }
 
-write_env_result_pass() {
+write_env_result_unit_test_pass() {
 	cat <<- END_OF_HELP
 	Test environment and result as below:
 
@@ -112,12 +148,24 @@ write_ninja_build_error_log() {
 	echo "-------------------------------END LOGS------------------------------"
 }
 
-write_test_result() {
+write_test_result_fail() {
 	testlog_json=$1
 	testlog_txt=$2
 
 	echo "Test result details:"
-	$parse_testlog $1 $2
+	$parse_testlog --summary $1 $2
+
+	echo ""
+	echo "Test logs for failed test cases:"
+	$parse_testlog --faillogs $1 $2
+}
+
+write_test_result_pass() {
+	testlog_json=$1
+	testlog_txt=$2
+
+	echo "Test result details:"
+	$parse_testlog --summary $1 $2
 }
 
 test_report_patch_apply_fail() {
@@ -150,7 +198,7 @@ test_report_patch_meson_build_fail() {
 	echo ""
 	echo "$pwid --> meson build failed"
 	echo ""
-	write_env_result_fail
+	write_env_result_compilation_fail
 	write_meson_build_error_log $log
 	) | cat - > $report
 }
@@ -168,7 +216,7 @@ test_report_patch_ninja_build_fail() {
 	echo ""
 	echo "$pwid --> ninja build failed"
 	echo ""
-	write_env_result_fail
+	write_env_result_compilation_fail
 	write_ninja_build_error_log $log
 	) | cat - > $report
 }
@@ -185,7 +233,7 @@ test_report_patch_build_pass() {
 	echo ""
 	echo "$pwid --> meson & ninja build successfully"
 	echo ""
-	write_env_result_pass
+	write_env_result_compilation_pass
 	) | cat - > $report
 }
 
@@ -201,8 +249,8 @@ test_report_patch_test_fail() {
 	echo ""
 	echo "$pwid --> testing fail"
 	echo ""
-	write_env_result_fail
-	write_test_result $testlog_json $testlog_txt
+	write_env_result_unit_test_fail
+	write_test_result_fail $testlog_json $testlog_txt
 	) | cat - > $report
 }
 
@@ -218,8 +266,8 @@ test_report_patch_test_pass() {
 	echo ""
 	echo "$pwid --> testing pass"
 	echo ""
-	write_env_result_pass
-	write_test_result $testlog_json $testlog_txt
+	write_env_result_unit_test_pass
+	write_test_result_pass $testlog_json $testlog_txt
 	) | cat - > $report
 }
 
@@ -267,7 +315,7 @@ test_report_series_meson_build_fail() {
 	echo ""
 	echo "$patchset --> meson build failed"
 	echo ""
-	write_env_result_fail
+	write_env_result_compilation_fail
 	write_meson_build_error_log $log
 	) | cat - > $report
 }
@@ -292,7 +340,7 @@ test_report_series_ninja_build_fail() {
 	echo ""
 	echo "$patchset --> ninja build failed"
 	echo ""
-	write_env_result_fail
+	write_env_result_compilation_fail
 	write_ninja_build_error_log $log
 	) | cat - > $report
 }
@@ -314,9 +362,9 @@ test_report_series_build_pass() {
 	write_patch_info $patches_dir/$first_pwid.patch
 	write_base_info $base_commit
 	echo ""
-	echo "$pwid --> meson & ninja build successfully"
+	echo "$patchset --> meson & ninja build successfully"
 	echo ""
-	write_env_result_pass
+	write_env_result_compilation_pass
 	) | cat - > $report
 }
 
@@ -341,8 +389,8 @@ test_report_series_test_fail() {
 	echo ""
 	echo "$patchset --> testing fail"
 	echo ""
-	write_env_result_fail
-	write_test_result $testlog_json $testlog_txt
+	write_env_result_unit_test_fail
+	write_test_result_fail $testlog_json $testlog_txt
 	) | cat - > $report
 }
 
@@ -367,7 +415,7 @@ test_report_series_test_pass() {
 	echo ""
 	echo "$patchset --> testing pass"
 	echo ""
-	write_env_result_pass
-	write_test_result $testlog_json $testlog_txt
+	write_env_result_unit_test_pass
+	write_test_result_pass $testlog_json $testlog_txt
 	) | cat - > $report
 }
