@@ -13,6 +13,17 @@ filter_patch_email=$(dirname $(readlink -e $0))/filter-patch-email.sh
 get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
 parse_testlog=$(dirname $(readlink -e $0))/../tools/parse_testlog.py
 
+status_warning="WARNING"
+status_failure="FAILURE"
+status_success="SUCCESS"
+
+desc_apply_failure="apply patch failure"
+desc_meson_build_failure="meson build failure"
+desc_ninja_build_failure="ninja build failure"
+desc_build_pass="Compilation OK"
+desc_unit_test_fail="Unit Testing FAIL"
+desc_unit_test_pass="Unit Testing PASS"
+
 export LC="en_US.UTF-8"
 export LANG="en_US.UTF-8"
 
@@ -138,7 +149,7 @@ if $failed ; then
 	git apply -v $patch_email 2>&1 | tee $apply_log
 	echo "apply patch failure"
 	test_report_patch_apply_fail $base_commit $patch_email $apply_log $test_report
-	send_patch_test_report $patch_email "WARNING" "apply patch failure" $test_report
+	send_patch_test_report $patch_email $status_warning "$desc_apply_failure" $test_report
 	exit 0
 fi
 
@@ -151,7 +162,7 @@ meson build || failed=true
 if $failed ; then
 	echo "meson build failure"
 	test_report_patch_meson_build_fail $base_commit $patch_email $meson_log $test_report
-	send_patch_test_report $patch_email "FAILURE" "meson build failure" $test_report
+	send_patch_test_report $patch_email $status_failure "$desc_meson_build_failure" $test_report
 	exit 0
 fi
 
@@ -160,9 +171,13 @@ ninja -C build |tee $ninja_log || failed=true
 if $failed ; then
 	echo "ninja build failure"
 	test_report_patch_ninja_build_fail $base_commit $patch_email $ninja_log $test_report
-	send_patch_test_report $patch_email "FAILURE" "ninja build failure" $test_report
+	send_patch_test_report $patch_email $status_failure "$desc_ninja_build_failure" $test_report
 	exit 0
 fi
+
+echo "meson & ninja build pass"
+test_report_patch_build_pass $base_commit $patch_email $test_report
+send_patch_test_report $patch_email $status_success "$desc_build_pass" $test_report
 
 failed=false
 meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 8 || failed=true
@@ -170,12 +185,12 @@ echo "test done!"
 if $failed ; then
 	echo "unit testing fail"
 	test_report_patch_test_fail $base_commit $patch_email $testlog_json $testlog_txt $test_report
-	send_patch_test_report $patch_email "FAILURE" "Unit Testing FAIL" $test_report
+	send_patch_test_report $patch_email $status_failure "$desc_unit_test_fail" $test_report
 	exit 0
 fi
 
 echo "unit testing pass"
 test_report_patch_test_pass $base_commit $patch_email $testlog_json $testlog_txt $test_report
-send_patch_test_report $patch_email "SUCCESS" "Unit Testing PASS" $test_report
+send_patch_test_report $patch_email $status_success "$desc_unit_test_pass" $test_report
 
 cd -

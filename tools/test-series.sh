@@ -19,6 +19,7 @@ status_success="SUCCESS"
 desc_apply_failure="apply patch failure"
 desc_meson_build_failure="meson build failure"
 desc_ninja_build_failure="ninja build failure"
+desc_build_pass="Compilation OK"
 desc_unit_test_fail="Unit Testing FAIL"
 desc_unit_test_pass="Unit Testing PASS"
 
@@ -208,6 +209,10 @@ if $failed ; then
 	send_series_test_report $series_id $patches_dir $status_failure "$desc_ninja_build_failure" $test_report
 	exit 0
 fi
+
+echo "meson & ninja build pass"
+test_report_series_build_pass $base_commit $patches_dir $test_report
+send_series_test_report $series_id $patches_dir $status_success "$desc_build_pass" $test_report
 
 failed=false
 meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 8 || failed=true

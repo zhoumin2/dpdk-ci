@@ -163,13 +163,29 @@ test_report_patch_ninja_build_fail() {
 	pwid=$(getheader X-Patchwork-Id $email)
 
 	(
-	write_patch_meteinfo $email
+	write_patch_info $email
 	write_base_info $base_commit
 	echo ""
 	echo "$pwid --> ninja build failed"
 	echo ""
 	write_env_result_fail
 	write_ninja_build_error_log $log
+	) | cat - > $report
+}
+
+test_report_patch_build_pass() {
+	base_commit=$1
+	email=$2
+	report=$3
+	pwid=$(getheader X-Patchwork-Id $email)
+
+	(
+	write_patch_info $email
+	write_base_info $base_commit
+	echo ""
+	echo "$pwid --> meson & ninja build successfully"
+	echo ""
+	write_env_result_pass
 	) | cat - > $report
 }
 
@@ -278,6 +294,29 @@ test_report_series_ninja_build_fail() {
 	echo ""
 	write_env_result_fail
 	write_ninja_build_error_log $log
+	) | cat - > $report
+}
+
+test_report_series_build_pass() {
+	base_commit=$1
+	patches_dir=$2
+	report=$3
+
+	first_pwid=`head -1 $patches_dir/pwid_order.txt`
+	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
+	if [ "$first_pwid" != "$last_pwid" ]; then
+		patchset="$first_pwid-$last_pwid"
+	else
+		patchset="$first_pwid"
+	fi
+
+	(
+	write_patch_info $patches_dir/$first_pwid.patch
+	write_base_info $base_commit
+	echo ""
+	echo "$pwid --> meson & ninja build successfully"
+	echo ""
+	write_env_result_pass
 	) | cat - > $report
 }
 
