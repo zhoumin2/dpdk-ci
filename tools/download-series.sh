@@ -67,27 +67,38 @@ fi
 echo "pwid(s) for series $series_id: $(echo $ids | tr '\n' ' ')"
 echo "$ids" > $save_dir/pwid_order.txt
 
+num=$(wc -l $save_dir/pwid_order.txt | awk '{print $1}')
+echo "The number of patch(es) is: $num"
 for id in $ids ; do
 	email=$save_dir/$id.patch
 	if [ ! -f $email ] ; then
 		$download_patch $g_opt $id > $email
 	fi
 
-	for try in $(seq 10) ; do
+	downloaded=false
+	for try in $(seq 20) ; do
 		lines=$(echo "$($filter_patch_email < $email)" | wc -l)
 		echo "$email lines: $lines"
 		if [ $((lines)) -lt 8 ] ; then
 			echo "download $email"
 			$download_patch $g_opt $id > $email
 		else
+			downloaded=true
 			break
 		fi
+		sleep 1
 	done
+
+	if ! $downloaded ; then
+		if [ $((num)) -gt 1 ] ; then
+			exit 1
+		fi
+	fi
 
 	lines=$(echo "$($filter_patch_email < $email)" | wc -l)
 	if [ $((lines)) -lt 8 ] ; then
 		echo "filter patch email failed: $email"
-		exit 1
+		#exit 1
 	fi
 done
 

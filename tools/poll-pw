@@ -75,7 +75,7 @@ URL="${URL}/events/?category=${resource_type}-completed"
 
 callcmd () # <patchwork id>
 {
-	echo $cmd $*
+	echo "$(date '+%FT%T') $cmd $*"
 	eval $cmd $*
 }
 
@@ -88,7 +88,8 @@ while true ; do
 		ids=$(curl -s "${URL}&page=${page}&since=${since}" |
 			jq "try ( .[] | select( .project.name == \"$project\" ) )" |
 			jq "try ( .payload.${resource_type}.id )")
-		echo $ids
+		echo "fetched series ids: $(echo $ids | tr '\n' ' ')"
+		echo ""
 		[ -z "$(echo $ids | tr -d '\n')" ] && break
 		for id in $ids ; do
 			if grep -q "^${id}$" $poll_pw_ids_file ; then
