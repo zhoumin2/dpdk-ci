@@ -75,7 +75,7 @@ report=$(cat)
 writeheaders () # <subject> <ref> <to> [cc]
 {
 	echo "Subject: $1"
-	echo "Reply-To: $2"
+	echo "In-Reply-To: $2"
 	echo "References: $2"
 	echo "To: $3"
 	[ -z "$4" ] || echo "Cc: $4"

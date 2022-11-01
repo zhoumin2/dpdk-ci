@@ -90,8 +90,7 @@ if echo "$listid" | grep -q 'dev.dpdk.org' ; then
 	subject=$(echo $title | sed 's,\[dpdk-dev\] ,,')
 	[ "$status" = 'SUCCESS' ] && cc='' || cc="$from"
 	(
-	#writeheaders "|$status| pw$pwid $subject" "$msgid" 'test-report@dpdk.org' "$cc"
-	writeheaders "|$status| pw$pwid $subject" "$msgid" "$cc"
+	writeheaders "|$status| pw$pwid $subject" "$msgid" 'test-report@dpdk.org' "$cc"
 	writeheadlines "$label" "$status" "$desc" "$pwid"
 	echo "$report"
 	) | $sendmail -t
@@ -99,7 +98,7 @@ else
 	# send private report
 	(
 		writeheaders "Re: $title" "$msgid" "$from"
-		writeheadlines "$label" "$status" "$desc" "$pwid"
+		writeheadlines "$label" "$status" "$desc"
 		echo "$report"
 	) | $sendmail -t
 fi
