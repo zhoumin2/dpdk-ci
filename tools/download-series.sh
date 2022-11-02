@@ -6,6 +6,7 @@
 URL=http://patches.dpdk.org/api/series
 download_patch=$(dirname $(readlink -e $0))/download-patch.sh
 filter_patch_email=$(dirname $(readlink -e $0))/filter-patch-email.sh
+parse_encoded_file=$(dirname $(readlink -e $0))/parse_encoded_file.py
 
 print_usage() {
 	cat <<- END_OF_HELP
@@ -100,6 +101,7 @@ for id in $ids ; do
 		echo "filter patch email failed: $email"
 		#exit 1
 	fi
+	python3 $parse_encoded_file $email $email
 done
 
 echo "download series done!"

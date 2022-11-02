@@ -146,9 +146,6 @@ else
 	fi
 fi
 
-#last_pwid=`tail -1 $patches_dir/pwid_order.txt`
-#check_patch_check $last_pwid
-
 . $(dirname $(readlink -e $0))/gen-test-report.sh
 
 cd $DPDK_HOME

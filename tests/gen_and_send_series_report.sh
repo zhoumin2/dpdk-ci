@@ -184,9 +184,6 @@ meson_test() {
 	send_series_test_report $series_id $patches_dir "$label_unit_testing" $status_success "$desc_unit_test_pass" $test_report
 }
 
-#last_pwid=`tail -1 $patches_dir/pwid_order.txt`
-#check_patch_check $last_pwid
-
 . $(dirname $(readlink -e $0))/../tools/gen-test-report.sh
 
 if [ -z "$DPDK_HOME" ]; then

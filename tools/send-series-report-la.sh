@@ -34,6 +34,7 @@ if [ -z "$passwd" ] ; then
 	echo "password for smtp is empty, please check $passwd_dat"
 	exit 1
 fi
+reports_dir=$(dirname $(readlink -e $0))/../reports
 
 unset title
 unset from
@@ -104,6 +105,7 @@ if echo "$listid" | grep -q 'dev.dpdk.org' ; then
 		done
 	fi
 	[ -n "$pwid" ] || pwid='?'
+	touch $reports_dir/${pwid}_report.txt
 	# send public report
 	subject=$(echo $title | sed 's,\[dpdk-dev\] ,,')
 	[ "$status" = 'SUCCESS' ] && cc='' || cc="$from"
@@ -112,7 +114,7 @@ if echo "$listid" | grep -q 'dev.dpdk.org' ; then
 	writeheaders "|$status| pw$pwids $subject" "$msgid" "$from" "$cc"
 	writeheadlines "$label" "$status" "$desc" "$pwid"
 	echo "$report"
-	) | $sendmail -f"$smtp_user" -t
+	) | tee $reports_dir/${pwid}_report.txt | $sendmail -f"$smtp_user" -t
 else
 	# send private report
 	(

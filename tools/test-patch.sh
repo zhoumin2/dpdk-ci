@@ -12,6 +12,7 @@ download_patch=$(dirname $(readlink -e $0))/../tools/download-patch.sh
 filter_patch_email=$(dirname $(readlink -e $0))/filter-patch-email.sh
 get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
 parse_testlog=$(dirname $(readlink -e $0))/../tools/parse_testlog.py
+parse_encoded_file=$(dirname $(readlink -e $0))/parse_encoded_file.py
 
 label_compilation="LoongArch compilation"
 label_unit_testing="LoongArch unit testing"
@@ -129,7 +130,7 @@ if [ $((lines)) -lt 8 ]; then
 	exit 1
 fi
 
-#check_patch_check $patch_id
+python3 $parse_encoded_file $patch_email $patch_email
 
 . $(dirname $(readlink -e $0))/gen-test-report.sh
 
