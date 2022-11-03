@@ -9,8 +9,14 @@ getheader() # <header_name> <email_file>
 	sed 's,",\\",g'
 }
 
+get_submitter() {
+	prefix="X-Patchwork-Submitter"
+	sed "/^${prefix}: */!d;s///;N;s,\n[[:space:]]\+, ,;s,\n.*,,;q" "$1" |
+	sed 's,",,g'
+}
+
 write_patch_info() {
-	submitter=$(getheader X-Patchwork-Submitter "$1")
+	submitter=$(get_submitter "$1")
 	date=$(getheader Date "$1")
 
 	echo "Submitter: $submitter"
@@ -18,9 +24,13 @@ write_patch_info() {
 }
 
 write_base_info() {
-	echo "DPDK git baseline: Repo:dpdk"
-	echo "  Branch: main"
-	echo "  CommitID: $1"
+	repo=$1
+	branch=$2
+	commit=$3
+
+	echo "DPDK git baseline: Repo:$repo"
+	echo "  Branch: $branch"
+	echo "  CommitID: $commit"
 }
 
 write_env_result_compilation_fail() {
@@ -169,15 +179,17 @@ write_test_result_pass() {
 }
 
 test_report_patch_apply_fail() {
-	base_commit=$1
-	email=$2
-	log=$3
-	report=$4
+	repo=$1
+	branch=$2
+	base_commit=$3
+	email=$4
+	log=$5
+	report=$6
 	pwid=$(getheader X-Patchwork-Id $email)
 
 	(
 	write_patch_info $email
-	write_base_info $base_commit
+	write_base_info $repo $branch $base_commit
 	echo ""
 	echo "Apply patch $pwid failed:"
 	echo ""
@@ -186,15 +198,17 @@ test_report_patch_apply_fail() {
 }
 
 test_report_patch_meson_build_fail() {
-	base_commit=$1
-	email=$2
-	log=$3
-	report=$4
+	repo=$1
+	branch=$2
+	base_commit=$3
+	email=$4
+	log=$5
+	report=$6
 	pwid=$(getheader X-Patchwork-Id $email)
 
 	(
 	write_patch_info $email
-	write_base_info $base_commit
+	write_base_info $repo $branch $base_commit
 	echo ""
 	echo "$pwid --> meson build failed"
 	echo ""
@@ -204,15 +218,17 @@ test_report_patch_meson_build_fail() {
 }
 
 test_report_patch_ninja_build_fail() {
-	base_commit=$1
-	email=$2
-	log=$3
-	report=$4
+	repo=$1
+	branch=$2
+	base_commit=$3
+	email=$4
+	log=$5
+	report=$6
 	pwid=$(getheader X-Patchwork-Id $email)
 
 	(
 	write_patch_info $email
-	write_base_info $base_commit
+	write_base_info $repo $branch $base_commit
 	echo ""
 	echo "$pwid --> ninja build failed"
 	echo ""
@@ -222,14 +238,16 @@ test_report_patch_ninja_build_fail() {
 }
 
 test_report_patch_build_pass() {
-	base_commit=$1
-	email=$2
-	report=$3
+	repo=$1
+	branch=$2
+	base_commit=$3
+	email=$4
+	report=$5
 	pwid=$(getheader X-Patchwork-Id $email)
 
 	(
 	write_patch_info $email
-	write_base_info $base_commit
+	write_base_info $repo $branch $base_commit
 	echo ""
 	echo "$pwid --> meson & ninja build successfully"
 	echo ""
@@ -238,14 +256,16 @@ test_report_patch_build_pass() {
 }
 
 test_report_patch_test_fail() {
-	base_commit=$1
-	email=$2
-	report=$3
+	repo=$1
+	branch=$2
+	base_commit=$3
+	email=$4
+	report=$5
 	pwid=$(getheader X-Patchwork-Id $email)
 
 	(
 	write_patch_info $email
-	write_base_info $base_commit
+	write_base_info $repo $branch $base_commit
 	echo ""
 	echo "$pwid --> testing fail"
 	echo ""
@@ -255,14 +275,16 @@ test_report_patch_test_fail() {
 }
 
 test_report_patch_test_pass() {
-	base_commit=$1
-	email=$2
-	report=$3
+	repo=$1
+	branch=$2
+	base_commit=$3
+	email=$4
+	report=$5
 	pwid=$(getheader X-Patchwork-Id $email)
 
 	(
 	write_patch_info $email
-	write_base_info $base_commit
+	write_base_info $repo $branch $base_commit
 	echo ""
 	echo "$pwid --> testing pass"
 	echo ""
@@ -272,10 +294,12 @@ test_report_patch_test_pass() {
 }
 
 test_report_series_apply_fail() {
-	base_commit=$1
-	patches_dir=$2
-	log=$3
-	report=$4
+	repo=$1
+	branch=$2
+	base_commit=$3
+	patches_dir=$4
+	log=$5
+	report=$6
 
 	first_pwid=`head -1 $patches_dir/pwid_order.txt`
 	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
@@ -287,7 +311,7 @@ test_report_series_apply_fail() {
 
 	(
 	write_patch_info $patches_dir/$first_pwid.patch
-	write_base_info $base_commit
+	write_base_info $repo $branch $base_commit
 	echo ""
 	echo "Apply patch set $patchset failed:"
 	echo ""
@@ -296,10 +320,12 @@ test_report_series_apply_fail() {
 }
 
 test_report_series_meson_build_fail() {
-	base_commit=$1
-	patches_dir=$2
-	log=$3
-	report=$4
+	repo=$1
+	branch=$2
+	base_commit=$3
+	patches_dir=$4
+	log=$5
+	report=$6
 
 	first_pwid=`head -1 $patches_dir/pwid_order.txt`
 	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
@@ -311,7 +337,7 @@ test_report_series_meson_build_fail() {
 
 	(
 	write_patch_info $patches_dir/$first_pwid.patch
-	write_base_info $base_commit
+	write_base_info $repo $branch $base_commit
 	echo ""
 	echo "$patchset --> meson build failed"
 	echo ""
@@ -321,10 +347,12 @@ test_report_series_meson_build_fail() {
 }
 
 test_report_series_ninja_build_fail() {
-	base_commit=$1
-	patches_dir=$2
-	log=$3
-	report=$4
+	repo=$1
+	branch=$2
+	base_commit=$3
+	patches_dir=$4
+	log=$5
+	report=$6
 
 	first_pwid=`head -1 $patches_dir/pwid_order.txt`
 	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
@@ -336,7 +364,7 @@ test_report_series_ninja_build_fail() {
 
 	(
 	write_patch_info $patches_dir/$first_pwid.patch
-	write_base_info $base_commit
+	write_base_info $repo $branch $base_commit
 	echo ""
 	echo "$patchset --> ninja build failed"
 	echo ""
@@ -346,33 +374,10 @@ test_report_series_ninja_build_fail() {
 }
 
 test_report_series_build_pass() {
-	base_commit=$1
-	patches_dir=$2
-	report=$3
-
-	first_pwid=`head -1 $patches_dir/pwid_order.txt`
-	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
-	if [ "$first_pwid" != "$last_pwid" ]; then
-		patchset="$first_pwid-$last_pwid"
-	else
-		patchset="$first_pwid"
-	fi
-
-	(
-	write_patch_info $patches_dir/$first_pwid.patch
-	write_base_info $base_commit
-	echo ""
-	echo "$patchset --> meson & ninja build successfully"
-	echo ""
-	write_env_result_compilation_pass
-	) | cat - > $report
-}
-
-test_report_series_test_fail() {
-	base_commit=$1
-	patches_dir=$2
-	testlog_json=$3
-	testlog_txt=$4
+	repo=$1
+	branch=$2
+	base_commit=$3
+	patches_dir=$4
 	report=$5
 
 	first_pwid=`head -1 $patches_dir/pwid_order.txt`
@@ -385,7 +390,34 @@ test_report_series_test_fail() {
 
 	(
 	write_patch_info $patches_dir/$first_pwid.patch
-	write_base_info $base_commit
+	write_base_info $repo $branch $base_commit
+	echo ""
+	echo "$patchset --> meson & ninja build successfully"
+	echo ""
+	write_env_result_compilation_pass
+	) | cat - > $report
+}
+
+test_report_series_test_fail() {
+	repo=$1
+	branch=$2
+	base_commit=$3
+	patches_dir=$4
+	testlog_json=$5
+	testlog_txt=$6
+	report=$7
+
+	first_pwid=`head -1 $patches_dir/pwid_order.txt`
+	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
+	if [ "$first_pwid" != "$last_pwid" ]; then
+		patchset="$first_pwid-$last_pwid"
+	else
+		patchset="$first_pwid"
+	fi
+
+	(
+	write_patch_info $patches_dir/$first_pwid.patch
+	write_base_info $repo $branch $base_commit
 	echo ""
 	echo "$patchset --> testing fail"
 	echo ""
@@ -395,11 +427,13 @@ test_report_series_test_fail() {
 }
 
 test_report_series_test_pass() {
-	base_commit=$1
-	patches_dir=$2
-	testlog_json=$3
-	testlog_txt=$4
-	report=$5
+	repo=$1
+	branch=$2
+	base_commit=$3
+	patches_dir=$4
+	testlog_json=$5
+	testlog_txt=$6
+	report=$7
 
 	first_pwid=`head -1 $patches_dir/pwid_order.txt`
 	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
@@ -411,7 +445,7 @@ test_report_series_test_pass() {
 
 	(
 	write_patch_info $patches_dir/$first_pwid.patch
-	write_base_info $base_commit
+	write_base_info $repo $branch $base_commit
 	echo ""
 	echo "$patchset --> testing pass"
 	echo ""

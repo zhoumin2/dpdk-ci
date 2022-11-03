@@ -1,7 +1,6 @@
 #!/bin/sh -e
 
 prog="loongarch-dpdk-ci.sh"
-DPDK=/home/zhoumin/dpdk
 DPDK_CI=/home/zhoumin/dpdk-ci
 
 ci_is_running() {
@@ -32,7 +31,7 @@ fi
 
 # Give two chances to restart quickly when start failed at the first time
 for try in $(seq 3) ; do
-	$DPDK_CI/tools/$prog $DPDK $DPDK_CI/last.txt || failed=true
+	$DPDK_CI/tools/$prog $DPDK_CI/last.txt || failed=true
 	if ci_is_running ; then
 		break
 	fi

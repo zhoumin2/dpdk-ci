@@ -10,9 +10,38 @@ send_series_report=$(dirname $(readlink -e $0))/../tools/send-series-report-la.s
 download_series=$(dirname $(readlink -e $0))/../tools/download-series.sh
 get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
 parse_testlog=$(dirname $(readlink -e $0))/../tools/parse_testlog.py
+pw_maintainers_cli=$(dirname $(readlink -e $0))/pw_maintainers_cli.py
+repo_branch_cfg=$(dirname $(readlink -e $0))/../config/repo_branch.cfg
 
 series_id=24969
 patches_dir=$(dirname $(readlink -e $0))/../series/$series_id
+
+export PW_SERVER="https://patches.dpdk.org/api/1.2/"
+export PW_PROJECT=dpdk
+#export PW_TOKEN=
+export MAINTAINERS_FILE_PATH=/home/zhoumin/dpdk/MAINTAINERS
+
+failed=false
+repo=$(python3.8 $pw_maintainers_cli --type series list-trees $series_id) || failed=true
+if $failed ; then
+	echo "list trees for series $series_id failed, default to 'dpdk'"
+	repo=dpdk
+else
+	echo "list trees for series $series_id: $repo"
+fi
+
+failed=false
+base=$(cat $repo_branch_cfg | jq "try ( .\"$repo\" )" |sed 's,",,g') || failed=true
+if $failed ; then
+	echo "get base branch for repo $repo failed"
+	exit 1
+fi
+
+DPDK_HOME=/home/zhoumin/$repo
+if [ ! -d "$DPDK_HOME" ] ; then
+	echo "$DPDK_HOME is not directory"
+	exit 1
+fi
 
 apply_log=$DPDK_HOME/apply-log.txt
 meson_log=$DPDK_HOME/build/meson-logs/meson-log.txt
@@ -123,7 +152,7 @@ apply_patches() {
 		if $failed ; then
 			git apply -v $patch_email 2>&1 | tee $apply_log
 			echo "apply patch failure"
-			test_report_series_apply_fail $base_commit $patches_dir $apply_log $test_report
+			test_report_series_apply_fail $repo $base $base_commit $patches_dir $apply_log $test_report
 			send_series_test_report $series_id $patches_dir "$label_compilation" $status_warning "$desc_apply_failure" $test_report
 			exit 0
 		fi
@@ -147,7 +176,7 @@ meson_build() {
 	meson build || failed=true
 	if $failed ; then
 		echo "meson build failure"
-		test_report_series_meson_build_fail $base_commit $patches_dir $meson_log $test_report
+		test_report_series_meson_build_fail $repo $base $base_commit $patches_dir $meson_log $test_report
 		send_series_test_report $series_id $patches_dir "$label_compilation" $status_failure "$desc_meson_build_failure" $test_report
 		exit 0
 	fi
@@ -158,13 +187,13 @@ ninja_build() {
 	ninja -C build |tee $ninja_log || failed=true
 	if $failed ; then
 		echo "ninja build failure"
-		test_report_series_ninja_build_fail $base_commit $patches_dir $ninja_log $test_report
+		test_report_series_ninja_build_fail $repo $base $base_commit $patches_dir $ninja_log $test_report
 		send_series_test_report $series_id $patches_dir "$label_compilation" $status_failure "$desc_ninja_build_failure" $test_report
 		exit 0
 	fi
 
 	echo "meson & ninja build pass"
-	test_report_series_build_pass $base_commit $patches_dir $test_report
+	test_report_series_build_pass $repo $base $base_commit $patches_dir $test_report
 	send_series_test_report $series_id $patches_dir "$label_compilation" $status_success "$desc_build_pass" $test_report
 }
 
@@ -174,22 +203,17 @@ meson_test() {
 	echo "test done!"
 	if $failed ; then
 		echo "unit testing fail"
-		test_report_series_test_fail $base_commit $patches_dir $testlog_json $testlog_txt $test_report
+		test_report_series_test_fail $repo $base $base_commit $patches_dir $testlog_json $testlog_txt $test_report
 		send_series_test_report $series_id $patches_dir "$label_unit_testing" $status_failure "$desc_unit_test_fail" $test_report
 		exit 0
 	fi
 
 	echo "unit testing pass"
-	test_report_series_test_pass $base_commit $patches_dir $testlog_json $testlog_txt $test_report
+	test_report_series_test_pass $repo $base $base_commit $patches_dir $testlog_json $testlog_txt $test_report
 	send_series_test_report $series_id $patches_dir "$label_unit_testing" $status_success "$desc_unit_test_pass" $test_report
 }
 
 . $(dirname $(readlink -e $0))/../tools/gen-test-report.sh
-
-if [ -z "$DPDK_HOME" ]; then
-	printf 'missing environment variable: $DPDK_HOME\n'
-	exit 1
-fi
 
 if [ ! -d $patches_dir ] ; then
 	failed=false
@@ -203,8 +227,11 @@ fi
 
 cd $DPDK_HOME
 
-#git checkout la-base
-git checkout main
+if git status | grep -q "git am --abort" ; then
+       git am --abort
+fi
+
+git checkout $base
 base_commit=`git log -1 --format=oneline |awk '{print $1}'`
 
 apply_patches

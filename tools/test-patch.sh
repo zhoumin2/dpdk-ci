@@ -13,6 +13,8 @@ filter_patch_email=$(dirname $(readlink -e $0))/filter-patch-email.sh
 get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
 parse_testlog=$(dirname $(readlink -e $0))/../tools/parse_testlog.py
 parse_encoded_file=$(dirname $(readlink -e $0))/parse_encoded_file.py
+pw_maintainers_cli=$(dirname $(readlink -e $0))/pw_maintainers_cli.py
+repo_branch_cfg=$(dirname $(readlink -e $0))/../config/repo_branch.cfg
 
 label_compilation="LoongArch compilation"
 label_unit_testing="LoongArch unit testing"
@@ -96,11 +98,6 @@ if [ $# -lt 1 ]; then
 	exit 1
 fi
 
-if [ -z "$DPDK_HOME" ]; then
-	printf 'missing environment variable: $DPDK_HOME\n'
-	exit 1
-fi
-
 patches_dir=$(dirname $(readlink -e $0))/../patches
 if [ ! -d $patches_dir ]; then
 	mkdir -p $patches_dir
@@ -109,12 +106,6 @@ fi
 patch_id=$1
 patch_email=$patches_dir/$patch_id.patch
 
-apply_log=$DPDK_HOME/apply-log.txt
-meson_log=$DPDK_HOME/build/meson-logs/meson-log.txt
-ninja_log=$DPDK_HOME/build/ninja-log.txt
-testlog_json=$DPDK_HOME/build/meson-logs/testlog.json
-testlog_txt=$DPDK_HOME/build/meson-logs/testlog.txt
-test_report=$DPDK_HOME/test-report.txt
 
 if $REUSE_PATCH ; then
 	if [ ! -f $patch_email ] ; then
@@ -123,6 +114,40 @@ if $REUSE_PATCH ; then
 else
 	$download_patch -g $patch_id > $patch_email
 fi
+
+export PW_SERVER="https://patches.dpdk.org/api/1.2/"
+export PW_PROJECT=dpdk
+#export PW_TOKEN=
+export MAINTAINERS_FILE_PATH=/home/zhoumin/dpdk/MAINTAINERS
+
+failed=false
+repo=$(python3.8 $pw_maintainers_cli --type patch list-trees $series_id) || failed=true
+if $failed ; then
+	echo "list trees for series $series_id failed, default to 'dpdk'"
+	repo=dpdk
+else
+	echo "list trees for series $series_id: $repo"
+fi
+
+failed=false
+base=$(cat $repo_branch_cfg | jq "try ( .\"$repo\" )" |sed 's,",,g') || failed=true
+if $failed ; then
+	echo "get base branch for repo $repo failed"
+	exit 1
+fi
+
+DPDK_HOME=/home/zhoumin/$repo
+if [ ! -d "$DPDK_HOME" ] ; then
+	echo "$DPDK_HOME is not directory"
+	exit 1
+fi
+
+apply_log=$DPDK_HOME/apply-log.txt
+meson_log=$DPDK_HOME/build/meson-logs/meson-log.txt
+ninja_log=$DPDK_HOME/build/ninja-log.txt
+testlog_json=$DPDK_HOME/build/meson-logs/testlog.json
+testlog_txt=$DPDK_HOME/build/meson-logs/testlog.txt
+test_report=$DPDK_HOME/test-report.txt
 
 lines=$(echo "$($filter_patch_email < $patch_email)" | wc -l)
 if [ $((lines)) -lt 8 ]; then
@@ -140,7 +165,7 @@ if git status | grep -q "git am --abort" ; then
        git am --abort
 fi
 
-git checkout main
+git checkout $base
 git pull --rebase
 base_commit=`git log -1 --format=oneline |awk '{print $1}'`
 
@@ -158,7 +183,7 @@ git apply --check $patch_email || failed=true
 if $failed ; then
 	git apply -v $patch_email 2>&1 | tee $apply_log
 	echo "apply patch failure"
-	test_report_patch_apply_fail $base_commit $patch_email $apply_log $test_report
+	test_report_patch_apply_fail $repo $base $base_commit $patch_email $apply_log $test_report
 	send_patch_test_report $patch_email "$label_compilation" $status_warning "$desc_apply_failure" $test_report
 	exit 0
 fi
@@ -171,7 +196,7 @@ failed=false
 meson build || failed=true
 if $failed ; then
 	echo "meson build failure"
-	test_report_patch_meson_build_fail $base_commit $patch_email $meson_log $test_report
+	test_report_patch_meson_build_fail $repo $base $base_commit $patch_email $meson_log $test_report
 	send_patch_test_report $patch_email "$label_compilation" $status_failure "$desc_meson_build_failure" $test_report
 	exit 0
 fi
@@ -180,13 +205,13 @@ failed=false
 ninja -C build |tee $ninja_log || failed=true
 if $failed ; then
 	echo "ninja build failure"
-	test_report_patch_ninja_build_fail $base_commit $patch_email $ninja_log $test_report
+	test_report_patch_ninja_build_fail $repo $base $base_commit $patch_email $ninja_log $test_report
 	send_patch_test_report $patch_email "$label_compilation" $status_failure "$desc_ninja_build_failure" $test_report
 	exit 0
 fi
 
 echo "meson & ninja build pass"
-test_report_patch_build_pass $base_commit $patch_email $test_report
+test_report_patch_build_pass $repo $base $base_commit $patch_email $test_report
 send_patch_test_report $patch_email "$label_compilation" $status_success "$desc_build_pass" $test_report
 
 failed=false
@@ -194,13 +219,13 @@ meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 8 || failed=
 echo "test done!"
 if $failed ; then
 	echo "unit testing fail"
-	test_report_patch_test_fail $base_commit $patch_email $testlog_json $testlog_txt $test_report
+	test_report_patch_test_fail $repo $base $base_commit $patch_email $testlog_json $testlog_txt $test_report
 	send_patch_test_report $patch_email "$label_unit_testing" $status_failure "$desc_unit_test_fail" $test_report
 	exit 0
 fi
 
 echo "unit testing pass"
-test_report_patch_test_pass $base_commit $patch_email $testlog_json $testlog_txt $test_report
+test_report_patch_test_pass $repo $base $base_commit $patch_email $testlog_json $testlog_txt $test_report
 send_patch_test_report $patch_email "$label_unit_testing" $status_success "$desc_unit_test_pass" $test_report
 
 cd -
