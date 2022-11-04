@@ -35,5 +35,5 @@ if $http_get ; then
 	url="http://patches.dpdk.org/patch/$pwid/mbox/"
 	curl -sfL $url
 else
-	$pwclient view $pwid
+	python3.8 $pwclient view $pwid
 fi

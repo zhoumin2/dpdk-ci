@@ -75,6 +75,7 @@ report=$(cat)
 
 writeheaders () # <subject> <ref> <to> [cc]
 {
+	echo "Content-Type: text/plain; charset=\"utf-8\""
 	echo "Subject: $1"
 	echo "In-Reply-To: $2"
 	echo "References: $2"

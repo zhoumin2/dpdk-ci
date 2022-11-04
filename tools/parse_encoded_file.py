@@ -15,7 +15,7 @@ def parse_decoded_file(ori_path, new_path):
     fp = open(ori_path)
     if fp == None:
         print("open %s failed" % (ori_path))
-        return
+        exit(1)
     
     pattern = re.compile('=\?utf-8\?[bq]\?.*\?=', re.IGNORECASE)
 
@@ -39,6 +39,10 @@ def parse_decoded_file(ori_path, new_path):
     fp.close()
 
     fp = codecs.open(new_path, 'w', encoding='utf-8') 
+    if fp == None:
+        print("open %s failed" % (new_path))
+        exit(1)
+
     for line in lines:
         fp.write(line)
     fp.close()
@@ -46,7 +50,7 @@ def parse_decoded_file(ori_path, new_path):
 def main():
     if len(sys.argv) != 3:
         print("Usage: %s ori_file new_file" % (sys.argv[0]))
-        exit()
+        exit(1)
 
     parse_decoded_file(sys.argv[1], sys.argv[2])
 

@@ -12,18 +12,19 @@ get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
 parse_testlog=$(dirname $(readlink -e $0))/../tools/parse_testlog.py
 pw_maintainers_cli=$(dirname $(readlink -e $0))/pw_maintainers_cli.py
 repo_branch_cfg=$(dirname $(readlink -e $0))/../config/repo_branch.cfg
+token_file=$(dirname $(readlink -e $0))/../.pw_token.dat
 
 series_id=24969
 patches_dir=$(dirname $(readlink -e $0))/../series/$series_id
 
 export PW_SERVER="https://patches.dpdk.org/api/1.2/"
 export PW_PROJECT=dpdk
-#export PW_TOKEN=
+export PW_TOKEN=$(cat $token_file)
 export MAINTAINERS_FILE_PATH=/home/zhoumin/dpdk/MAINTAINERS
 
 failed=false
 repo=$(python3.8 $pw_maintainers_cli --type series list-trees $series_id) || failed=true
-if $failed ; then
+if $failed -o -z "$repo" ; then
 	echo "list trees for series $series_id failed, default to 'dpdk'"
 	repo=dpdk
 else
@@ -32,7 +33,7 @@ fi
 
 failed=false
 base=$(cat $repo_branch_cfg | jq "try ( .\"$repo\" )" |sed 's,",,g') || failed=true
-if $failed ; then
+if $failed -o -z "$base" ; then
 	echo "get base branch for repo $repo failed"
 	exit 1
 fi
