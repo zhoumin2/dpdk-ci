@@ -56,7 +56,7 @@ check_series_test_report() {
 
 	now_ts=$(date +%s)
 	sub_ts=$(date +%s -d $sub_time)
-	diff=$((now_ts-sub_ts))
+	diff=$((now_ts-sub_ts-28800))
 	if [ $diff -lt 600 ] ; then
 		echo "ignore series $series_id which submitted at $sub_time"
 		return 1
