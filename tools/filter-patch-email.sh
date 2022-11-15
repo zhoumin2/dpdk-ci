@@ -61,7 +61,10 @@ parse ()
 			[ "$1" != '+++' ] || plusline=true
 			[ "$1" != '@@' ] || atline=true
 			[ "$1 $2 $3" != 'GIT binary patch' ] || binary=true
-			if ($minusline && $plusline && $atline) || $binary ; then
+			[ "$1 $2" != 'mode change' ] || mode_change=true
+			[ "$1 $2" != 'old mode' ] || old_mode=true
+			[ "$1 $2" != 'new mode' ] || new_mode=true
+			if ($minusline && $plusline && $atline) || $binary || ($mode_change && $old_mode && $new_mode) ; then
 				echo 1 >$fifo
 				done=true
 				cat

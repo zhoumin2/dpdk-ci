@@ -93,7 +93,7 @@ send_series_test_report() {
 		exit 1
 	fi
 
-	from="zhoumin@loongson.cn"
+	#from="zhoumin@loongson.cn"
 	echo "send test report for series $series_id to $from"
 	$send_series_report -t "$subject" -f "$from" -m "$msgid" -p "$target_pwid" \
 		-r "$pwids" -o "$listid" -l "$label" \
@@ -143,7 +143,7 @@ export PW_TOKEN=$(cat $token_file)
 export MAINTAINERS_FILE_PATH=/home/zhoumin/dpdk/MAINTAINERS
 
 failed=false
-repo=$(python3.8 $pw_maintainers_cli --type series list-trees $series_id) || failed=true
+repo=$(timeout -s SIGKILL 30s python3.8 $pw_maintainers_cli --type series list-trees $series_id) || failed=true
 if $failed -o -z "$repo" ; then
 	echo "list trees for series $series_id failed, default to 'dpdk'"
 	repo=dpdk

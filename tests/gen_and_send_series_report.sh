@@ -23,7 +23,7 @@ export PW_TOKEN=$(cat $token_file)
 export MAINTAINERS_FILE_PATH=/home/zhoumin/dpdk/MAINTAINERS
 
 failed=false
-repo=$(python3.8 $pw_maintainers_cli --type series list-trees $series_id) || failed=true
+repo=$(timeout -s SIGKILL 30s python3.8 $pw_maintainers_cli --type series list-trees $series_id) || failed=true
 if $failed -o -z "$repo" ; then
 	echo "list trees for series $series_id failed, default to 'dpdk'"
 	repo=dpdk

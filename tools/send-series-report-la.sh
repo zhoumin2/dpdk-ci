@@ -111,8 +111,8 @@ if echo "$listid" | grep -q 'dev.dpdk.org' ; then
 	subject=$(echo $title | sed 's,\[dpdk-dev\] ,,')
 	[ "$status" = 'SUCCESS' ] && cc='' || cc="$from"
 	(
-	#writeheaders "|$status| pw$pwid $subject" "$msgid" 'test-report@dpdk.org' "$cc"
-	writeheaders "|$status| pw$pwids $subject" "$msgid" "$from" "$cc"
+	writeheaders "|$status| pw$pwids $subject" "$msgid" 'test-report@dpdk.org' "$cc"
+	#writeheaders "|$status| pw$pwids $subject" "$msgid" "$from" "$cc"
 	writeheadlines "$label" "$status" "$desc" "$pwid"
 	echo "$report"
 	) | tee $reports_dir/${pwid}_report.txt | $sendmail -f"$smtp_user" -t
