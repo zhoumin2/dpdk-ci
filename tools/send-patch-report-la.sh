@@ -27,13 +27,6 @@ print_usage () {
 sendmail=${DPDK_CI_MAILER:-/usr/sbin/sendmail}
 pwclient=${DPDK_CI_PWCLIENT:-$(dirname $(readlink -m $0))/pwclient}
 
-passwd_dat=$(dirname $(readlink -e $0))/../.mail_passwd.dat
-passwd=$(cat $passwd_dat)
-if [ -z "$passwd" ] ; then
-	echo "password for smtp is empty, please check $passwd_dat"
-	exit 1
-fi
-
 unset title
 unset from
 unset msgid
@@ -85,7 +78,6 @@ writeheadlines () # <label> <status> <description> [pwid]
 }
 
 smtp_user="qemudev@loongson.cn"
-envs="env MAILRC=/dev/null from=$smtp_user smtp=smtp.loongson.cn smtp-auth-user=$smtp_user smtp-auth-password=$passwd smtp-auth=login"
 
 if echo "$listid" | grep -q 'dev.dpdk.org' ; then
 	# get patchwork id
