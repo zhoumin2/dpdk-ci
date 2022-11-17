@@ -56,8 +56,10 @@ check_series_test_report() {
 
 	now_ts=$(date +%s)
 	sub_ts=$(date +%s -d $sub_time)
+	# change UTC time (UTC +0) to Beijing time (UTC +8)
 	diff=$((now_ts-sub_ts-28800))
-	if [ $diff -lt 600 ] ; then
+	# ignore the series submitted less than one hour
+	if [ $diff -lt 3600 ] ; then
 		echo "ignore series $series_id which submitted at $sub_time"
 		return 1
 	fi
