@@ -20,6 +20,7 @@ print_usage () {
 	        -l label    title of the test (slug formatted)
 	        -s status   one of these test results: SUCCESS, WARNING, FAILURE
 	        -d desc     few words to better describe the status
+	        -k path     path to keep a copy for the test report
 	        -h          this help
 	END_OF_HELP
 }
@@ -39,7 +40,8 @@ unset listid
 unset label
 unset status
 unset desc
-while getopts d:f:hl:m:o:p:r:s:t: arg ; do
+unset save_path
+while getopts d:f:hk:l:m:o:p:r:s:t: arg ; do
 	case $arg in
 		t ) title=$OPTARG ;;
 		f ) from=$OPTARG ;;
@@ -50,12 +52,18 @@ while getopts d:f:hl:m:o:p:r:s:t: arg ; do
 		l ) label=$(echo $OPTARG | sed 's,[[:space:]]\+,-,g') ;;
 		s ) status=$OPTARG ;;
 		d ) desc=$OPTARG ;;
+		k ) save_path=$OPTARG ;;
 		h ) print_usage ; exit 0 ;;
 		? ) print_usage >&2 ; exit 1 ;;
 	esac
 done
 if [ -z "$pwids" ] ; then
 	printf "missing arugment for pwids\n"
+	print_usage >&2
+	exit 1
+fi
+if [ -z "$save_path" ] ; then
+	printf "missing the path for copy\n"
 	print_usage >&2
 	exit 1
 fi
@@ -108,7 +116,7 @@ if echo "$listid" | grep -q 'dev.dpdk.org' ; then
 	#writeheaders "|$status| pw$pwids $subject" "$msgid" "$from" "$cc"
 	writeheadlines "$label" "$status" "$desc" "$pwid"
 	echo "$report"
-	) | tee $reports_dir/${pwid}_report.txt | $sendmail -f"$smtp_user" -t
+	) | tee $save_path | $sendmail -f"$smtp_user" -t
 else
 	# send private report
 	(

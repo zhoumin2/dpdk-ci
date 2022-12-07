@@ -14,7 +14,7 @@ pw_maintainers_cli=$(dirname $(readlink -e $0))/pw_maintainers_cli.py
 repo_branch_cfg=$(dirname $(readlink -e $0))/../config/repo_branch.cfg
 token_file=$(dirname $(readlink -e $0))/../.pw_token.dat
 
-series_id=24969
+series_id=26008
 patches_dir=$(dirname $(readlink -e $0))/../series/$series_id
 
 export PW_SERVER="https://patches.dpdk.org/api/1.2/"
@@ -50,6 +50,8 @@ ninja_log=$DPDK_HOME/build/ninja-log.txt
 testlog_json=$DPDK_HOME/build/meson-logs/testlog.json
 testlog_txt=$DPDK_HOME/build/meson-logs/testlog.txt
 test_report=$DPDK_HOME/test-report.txt
+build_mail=build_mail.txt
+unit_test_mail=unit_test_mail.txt
 
 label_compilation="loongarch compilation"
 label_unit_testing="loongarch unit testing"
@@ -98,9 +100,11 @@ send_series_test_report() {
 	status=$4
 	desc=$5
 	report=$6
+	mail_file=$7
 
 	first_pwid=`head -1 $patches_dir/pwid_order.txt`
 	last_pwid=`tail -1 $patches_dir/pwid_order.txt`
+	mail_path=$patches_dir/$mail_file
 
 	target_pwid=$last_pwid
 	if [ "$desc" = "$desc_apply_failure" ] ; then
@@ -126,7 +130,7 @@ send_series_test_report() {
 	echo "label: $label"
 	$send_series_report -t "$subject" -f "$from" -m "$msgid" -p "$target_pwid" \
 		-r "$pwids" -o "$listid" -l "$label" \
-		-s "$status" -d "$desc" < $report
+		-s "$status" -d "$desc" -k "$mail_path" < $report
 }
 
 apply_patches() {
@@ -154,7 +158,7 @@ apply_patches() {
 			git apply -v $patch_email 2>&1 | tee $apply_log
 			echo "apply patch failure"
 			test_report_series_apply_fail $repo $base $base_commit $patches_dir $apply_log $test_report
-			send_series_test_report $series_id $patches_dir "$label_compilation" $status_warning "$desc_apply_failure" $test_report
+			send_series_test_report $series_id $patches_dir "$label_compilation" $status_warning "$desc_apply_failure" $test_report $build_mail
 			exit 0
 		fi
 
@@ -178,7 +182,7 @@ meson_build() {
 	if $failed ; then
 		echo "meson build failure"
 		test_report_series_meson_build_fail $repo $base $base_commit $patches_dir $meson_log $test_report
-		send_series_test_report $series_id $patches_dir "$label_compilation" $status_failure "$desc_meson_build_failure" $test_report
+		send_series_test_report $series_id $patches_dir "$label_compilation" $status_failure "$desc_meson_build_failure" $test_report $build_mail
 		exit 0
 	fi
 }
@@ -189,13 +193,13 @@ ninja_build() {
 	if $failed ; then
 		echo "ninja build failure"
 		test_report_series_ninja_build_fail $repo $base $base_commit $patches_dir $ninja_log $test_report
-		send_series_test_report $series_id $patches_dir "$label_compilation" $status_failure "$desc_ninja_build_failure" $test_report
+		send_series_test_report $series_id $patches_dir "$label_compilation" $status_failure "$desc_ninja_build_failure" $test_report $build_mail
 		exit 0
 	fi
 
 	echo "meson & ninja build pass"
 	test_report_series_build_pass $repo $base $base_commit $patches_dir $test_report
-	send_series_test_report $series_id $patches_dir "$label_compilation" $status_success "$desc_build_pass" $test_report
+	send_series_test_report $series_id $patches_dir "$label_compilation" $status_success "$desc_build_pass" $test_report $build_mail
 }
 
 meson_test() {
@@ -205,13 +209,13 @@ meson_test() {
 	if $failed ; then
 		echo "unit testing fail"
 		test_report_series_test_fail $repo $base $base_commit $patches_dir $testlog_json $testlog_txt $test_report
-		send_series_test_report $series_id $patches_dir "$label_unit_testing" $status_failure "$desc_unit_test_fail" $test_report
+		send_series_test_report $series_id $patches_dir "$label_unit_testing" $status_failure "$desc_unit_test_fail" $test_report $unit_test_mail
 		exit 0
 	fi
 
 	echo "unit testing pass"
 	test_report_series_test_pass $repo $base $base_commit $patches_dir $testlog_json $testlog_txt $test_report
-	send_series_test_report $series_id $patches_dir "$label_unit_testing" $status_success "$desc_unit_test_pass" $test_report
+	send_series_test_report $series_id $patches_dir "$label_unit_testing" $status_success "$desc_unit_test_pass" $test_report $unit_test_mail
 }
 
 . $(dirname $(readlink -e $0))/../tools/gen-test-report.sh

@@ -91,28 +91,52 @@ check_series_test_report() {
 		return 1
 	fi
 
+	found=true
+	patches_dir=$(dirname $(readlink -e $0))/../series/$series_id
 	context=$(echo "$label_compilation" | sed 's/ /-/g')
 	if echo "$contexts" | grep -qi "$context" ; then
 		echo "test report for $last_pwid from "$context" existed!"
 	else
+		found=false
 		echo "$label_compilation not found, notifying zhoumin ..."
 		(
 		writeheaders "$label_compilation not found for pwid $last_pwid" 'zhoumin@loongson.cn' 'zhoumin@bupt.cn'
 		echo "http://dpdk.org/patch/$last_pwid"
 		) | $sendmail -f"$smtp_user" -t
-		return 0
+
+		mail_file=build_mail.txt
+		mail_path=$patches_dir/$mail_file
+		if [ -f $mail_path ] ; then
+			echo "try send build report for $series_id: $mail_path ..."
+			cat $mail_path | $sendmail -f"$smtp_user" -t
+			sleep 20
+		fi
+		#return 1
 	fi
 
 	context=$(echo "$label_unit_testing" | sed 's/ /-/g')
 	if echo "$contexts" | grep -qi "$context" ; then
 		echo "test report for $last_pwid from "$context" existed!"
 	else
+		found=false
 		echo "$label_unit_testing not found, notifying zhoumin ..."
 		(
 		writeheaders "$label_unit_testing not found for pwid $last_pwid" 'zhoumin@loongson.cn' 'zhoumin@bupt.cn'
 		echo "http://dpdk.org/patch/$last_pwid"
 		) | $sendmail -f"$smtp_user" -t
-		return 0
+
+		mail_file=unit_test_mail.txt
+		mail_path=$patches_dir/$mail_file
+		if [ -f $mail_path ] ; then
+			echo "try send test report for $series_id: $mail_path ..."
+			cat $mail_path | $sendmail -f"$smtp_user" -t
+			sleep 20
+		fi
+		#return 1
+	fi
+
+	if ! $found ; then
+		return 1
 	fi
 
 	return 0
