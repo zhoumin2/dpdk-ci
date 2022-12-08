@@ -29,9 +29,13 @@ if $failed ; then
 	exit 1
 fi
 
-# Give two chances to restart quickly when start failed at the first time
-for try in $(seq 3) ; do
-	$DPDK_CI/tools/$prog 2 || failed=true
+# Give one more chance to restart quickly when start failed at the first time
+for try in $(seq 2) ; do
+	failed=false
+	$DPDK_CI/tools/$prog 3 || failed=true
+	if ! $failed ; then
+		break
+	fi
 	if monitor_is_running ; then
 		break
 	fi

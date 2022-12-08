@@ -1,5 +1,8 @@
 #!/bin/sh -e
 
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright 2022 Loongson
+
 get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
 
 project=DPDK
@@ -10,6 +13,9 @@ URL="${URL}/events/?category=${resource_type}-completed"
 
 label_compilation="loongarch compilation"
 label_unit_testing="loongarch unit testing"
+
+mail_send_interval=30
+tmp_file=`mktemp -t ci_monitor.XXXXXX`
 
 . $(dirname $(readlink -e $0))/load-ci-config.sh
 sendmail=${DPDK_CI_MAILER:-/usr/sbin/sendmail}
@@ -99,17 +105,18 @@ check_series_test_report() {
 	else
 		found=false
 		echo "$label_compilation not found, notifying zhoumin ..."
-		(
-		writeheaders "$label_compilation not found for pwid $last_pwid" 'zhoumin@loongson.cn' 'zhoumin@bupt.cn'
-		echo "http://dpdk.org/patch/$last_pwid"
-		) | $sendmail -f"$smtp_user" -t
+		#(
+		#writeheaders "$label_compilation not found for pwid $last_pwid" 'zhoumin@loongson.cn'
+		#echo "http://dpdk.org/patch/$last_pwid"
+		#) | $sendmail -f"$smtp_user" -t
+		echo "$label_compilation not found for pwid $last_pwid: http://dpdk.org/patch/$last_pwid" >> $tmp_file
 
 		mail_file=build_mail.txt
 		mail_path=$patches_dir/$mail_file
 		if [ -f $mail_path ] ; then
 			echo "try send build report for $series_id: $mail_path ..."
 			cat $mail_path | $sendmail -f"$smtp_user" -t
-			sleep 20
+			sleep $mail_send_interval
 		fi
 		#return 1
 	fi
@@ -120,17 +127,18 @@ check_series_test_report() {
 	else
 		found=false
 		echo "$label_unit_testing not found, notifying zhoumin ..."
-		(
-		writeheaders "$label_unit_testing not found for pwid $last_pwid" 'zhoumin@loongson.cn' 'zhoumin@bupt.cn'
-		echo "http://dpdk.org/patch/$last_pwid"
-		) | $sendmail -f"$smtp_user" -t
+		#(
+		#writeheaders "$label_unit_testing not found for pwid $last_pwid" 'zhoumin@loongson.cn'
+		#echo "http://dpdk.org/patch/$last_pwid"
+		#) | $sendmail -f"$smtp_user" -t
+		echo "$label_unit_testing not found for pwid $last_pwid: http://dpdk.org/patch/$last_pwid" >> $tmp_file
 
 		mail_file=unit_test_mail.txt
 		mail_path=$patches_dir/$mail_file
 		if [ -f $mail_path ] ; then
 			echo "try send test report for $series_id: $mail_path ..."
 			cat $mail_path | $sendmail -f"$smtp_user" -t
-			sleep 20
+			sleep $mail_send_interval
 		fi
 		#return 1
 	fi
@@ -177,3 +185,10 @@ while true ; do
 	done
 	page=$(($page + 1))
 done
+
+(
+writeheaders "Test reports not found!" 'zhoumin@loongson.cn'
+cat $tmp_file
+) | $sendmail -f"$smtp_user" -t
+
+#rm $tmp_file
