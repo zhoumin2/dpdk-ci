@@ -3,6 +3,23 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright 2022 Loongson
 
+print_usage() {
+	cat <<- END_OF_HELP
+	usage: $(basename $0) [options]
+
+	Run once dpdk ci monitor to check all series committed since last X
+	days and to find out the series that didn't receive the test reports
+	from Loongson.
+
+	User can decide whether to resend the lost test reports or not.
+
+	options:
+	        -p pre   specify the checking period
+	        -r       resend the lost test reports
+	        -h       this help
+	END_OF_HELP
+}
+
 get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
 
 project=DPDK
@@ -15,7 +32,6 @@ label_compilation="loongarch compilation"
 label_unit_testing="loongarch unit testing"
 
 mail_send_interval=30
-tmp_file=`mktemp -t ci_monitor.XXXXXX`
 
 . $(dirname $(readlink -e $0))/load-ci-config.sh
 sendmail=${DPDK_CI_MAILER:-/usr/sbin/sendmail}
@@ -105,20 +121,17 @@ check_series_test_report() {
 	else
 		found=false
 		echo "$label_compilation not found, notifying zhoumin ..."
-		#(
-		#writeheaders "$label_compilation not found for pwid $last_pwid" 'zhoumin@loongson.cn'
-		#echo "http://dpdk.org/patch/$last_pwid"
-		#) | $sendmail -f"$smtp_user" -t
 		echo "$label_compilation not found for pwid $last_pwid: http://dpdk.org/patch/$last_pwid" >> $tmp_file
 
 		mail_file=build_mail.txt
 		mail_path=$patches_dir/$mail_file
-		if [ -f $mail_path ] ; then
-			echo "try send build report for $series_id: $mail_path ..."
-			cat $mail_path | $sendmail -f"$smtp_user" -t
-			sleep $mail_send_interval
+		if $resend ; then
+			if [ -f $mail_path ] ; then
+				echo "try send build report for $series_id: $mail_path ..."
+				cat $mail_path | $sendmail -f"$smtp_user" -t
+				sleep $mail_send_interval
+			fi
 		fi
-		#return 1
 	fi
 
 	context=$(echo "$label_unit_testing" | sed 's/ /-/g')
@@ -127,20 +140,17 @@ check_series_test_report() {
 	else
 		found=false
 		echo "$label_unit_testing not found, notifying zhoumin ..."
-		#(
-		#writeheaders "$label_unit_testing not found for pwid $last_pwid" 'zhoumin@loongson.cn'
-		#echo "http://dpdk.org/patch/$last_pwid"
-		#) | $sendmail -f"$smtp_user" -t
 		echo "$label_unit_testing not found for pwid $last_pwid: http://dpdk.org/patch/$last_pwid" >> $tmp_file
 
 		mail_file=unit_test_mail.txt
 		mail_path=$patches_dir/$mail_file
-		if [ -f $mail_path ] ; then
-			echo "try send test report for $series_id: $mail_path ..."
-			cat $mail_path | $sendmail -f"$smtp_user" -t
-			sleep $mail_send_interval
+		if $resend ; then
+			if [ -f $mail_path ] ; then
+				echo "try send test report for $series_id: $mail_path ..."
+				cat $mail_path | $sendmail -f"$smtp_user" -t
+				sleep $mail_send_interval
+			fi
 		fi
-		#return 1
 	fi
 
 	if ! $found ; then
@@ -150,10 +160,28 @@ check_series_test_report() {
 	return 0
 }
 
-if [ -z "$1" ] ; then
-	pre=1
-else
-	pre=$1
+
+pre=""
+resend=false
+while getopts hp:r arg ; do
+	case $arg in
+		p ) pre=$OPTARG ;;
+		h ) print_usage ; exit 0 ;;
+		r ) resend=true ;;
+		? ) print_usage >&2 ; exit 1 ;;
+	esac
+done
+
+if [ -z "$pre" ] ; then
+	echo "Missing -p argument!"
+	print_usage
+	exit 1
+fi
+
+if [ -z "`echo $pre | sed -n '/^[0-9][0-9]*$/p'`" ] ; then
+	echo "The argument for -p should be numerical!"
+	print_usage
+	exit 1
 fi
 
 report_done_ids_file=/tmp/report_done_pw_${resource_type}_ids
@@ -161,6 +189,7 @@ if [ ! -f "$report_done_ids_file" ] ; then
 	touch $report_done_ids_file
 fi
 
+tmp_file=`mktemp -t ci_monitor.XXXXXX`
 page=1
 hms=$(date +%T)
 pre_day=$(date -d "$pre day ago" +%Y-%m-%dT$hms)
