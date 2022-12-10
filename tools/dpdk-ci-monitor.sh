@@ -101,15 +101,31 @@ check_series_test_report() {
 	fi
 
 	echo "pwid(s) for series $series_id: $(echo $pids | tr '\n' ' ')"
+	first_pwid=$(echo $pids | tr '\n' ' ' | awk '{print $1}')
 	last_pwid=$(echo $pids | tr '\n' ' ' | awk '{print $NF}')
+	echo "$series_id pwid(s) range: $first_pwid-$last_pwid"
+	if [ $first_pwid != $last_pwid ] ; then
+		echo "finding contexts for first pwid: $first_pwid ..."
+		failed=false
+		contexts=$($get_patch_check $first_pwid) || failed=true
+		echo "contexts for first pwid $first_pwid: $contexts"
+		if $failed ; then
+			echo "find contexts for first pwid $first_pwid failed"
+		else
+			context=$(echo "$label_compilation" | sed 's/ /-/g')
+			if echo "$contexts" | grep -qi "$context" ; then
+				echo "test report for $first_pwid from "$context" existed!"
+				return 0
+			fi
+		fi
+	fi
 
-	echo "finding contexts for $last_pwid ..."
-
+	echo "finding contexts for last pwid: $last_pwid ..."
 	failed=false
 	contexts=$($get_patch_check $last_pwid) || failed=true
-	echo "contexts for $last_pwid: $contexts"
+	echo "contexts for last pwid $last_pwid: $contexts"
 	if $failed ; then
-		echo "find contexts for $last_pwid failed"
+		echo "find contexts for last pwid $last_pwid failed"
 		return 1
 	fi
 
