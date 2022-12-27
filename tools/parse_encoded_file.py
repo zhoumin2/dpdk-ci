@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 #!/bin/python
 
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright 2022 Loongson
+
 import codecs
 import email.header
 import re

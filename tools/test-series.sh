@@ -56,8 +56,6 @@ check_patch_check() {
 
 	if echo "$contexts" | grep -qi "$context" ; then
 	      echo "test report for $pwid from "$context" existed!"
-	      echo "test not execute."
-	      exit 0
 	else
 	      echo "not found context: "$context""
 	fi

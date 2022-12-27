@@ -231,9 +231,14 @@ while true ; do
 	page=$(($page + 1))
 done
 
-(
-writeheaders "Test reports not found!" 'zhoumin@loongson.cn'
-cat $tmp_file
-) | $sendmail -f"$smtp_user" -t
+if test -s $tmp_file ; then
+	(
+	writeheaders "Test reports not found!" 'zhoumin@loongson.cn'
+	cat $tmp_file
+	) | $sendmail -f"$smtp_user" -t
+else
+	echo "No missed test report found!"
+	exit 0
+fi
 
 #rm $tmp_file

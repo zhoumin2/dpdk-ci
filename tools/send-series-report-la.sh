@@ -75,6 +75,8 @@ if [ -t 0 ] ; then
 fi
 report=$(cat)
 
+ci_maintainer="zhoumin@loongson.cn"
+
 writeheaders () # <subject> <ref> <to> [cc]
 {
 	echo "Content-Type: text/plain; charset=\"utf-8\""
@@ -82,7 +84,7 @@ writeheaders () # <subject> <ref> <to> [cc]
 	echo "In-Reply-To: $2"
 	echo "References: $2"
 	echo "To: $3"
-	[ -z "$4" ] || echo "Cc: $4"
+	[ -z "$4" ] || echo "Cc: $4, $ci_maintainer"
 	echo
 }
 
