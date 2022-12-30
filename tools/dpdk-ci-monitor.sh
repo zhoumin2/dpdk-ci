@@ -21,6 +21,7 @@ print_usage() {
 }
 
 get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
+check_test_results=$(dirname $(readlink -e $0))/../tools/check_test_results.py
 
 project=DPDK
 resource_type=series
@@ -238,6 +239,17 @@ if test -s $tmp_file ; then
 	) | $sendmail -f"$smtp_user" -t
 else
 	echo "No missed test report found!"
+	exit 0
+fi
+
+python3 $check_test_results $pre $tmp_file
+if test -s $tmp_file ; then
+	(
+	writeheaders "Summaries for test results" 'zhoumin@loongson.cn'
+	cat $tmp_file
+	) | $sendmail -f"$smtp_user" -t
+else
+	echo "Get summaries failed for test results!"
 	exit 0
 fi
 
