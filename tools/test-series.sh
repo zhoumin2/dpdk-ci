@@ -100,6 +100,77 @@ send_series_test_report() {
 		-s "$status" -d "$desc" -k "$mail_path" < $report
 }
 
+try_apply() {
+	repo=$1
+	need_send=$2
+
+	failed=false
+	base=$(cat $repo_branch_cfg | jq "try ( .\"$repo\" )" |sed 's,",,g') || failed=true
+	if $failed -o -z "$base" ; then
+		echo "get base branch for repo $repo failed"
+		exit 1
+	fi
+
+	DPDK_HOME=/home/zhoumin/$repo
+	if [ ! -d "$DPDK_HOME" ] ; then
+		echo "$DPDK_HOME is not directory"
+		exit 1
+	fi
+
+	apply_log=$DPDK_HOME/apply-log.txt
+	meson_log=$DPDK_HOME/build/meson-logs/meson-log.txt
+	ninja_log=$DPDK_HOME/build/ninja-log.txt
+	testlog_json=$DPDK_HOME/build/meson-logs/testlog.json
+	testlog_txt=$DPDK_HOME/build/meson-logs/testlog.txt
+	test_report=$DPDK_HOME/test-report.txt
+	build_mail=build_mail.txt
+	unit_test_mail=unit_test_mail.txt
+
+	cd $DPDK_HOME
+
+	if git status | grep -q "git am --abort" ; then
+	       git am --abort
+	fi
+
+	git checkout $base
+	git pull --rebase
+	base_commit=`git log -1 --format=oneline |awk '{print $1}'`
+
+	new_branch=$BRANCH_PREFIX-$series_id
+	ret=`git branch --list $new_branch`
+	if [ ! -z "$ret" ]; then
+		git branch -D $new_branch
+	fi
+	git checkout -b $new_branch
+
+	while read line
+	do
+		id=`echo $line|sed 's/^[[:space:]]*//g;s/[[:space:]]*$//g'`
+		if [ -z "$id" ] ; then
+			continue
+		fi
+		patch_email=$patches_dir/$id.patch
+
+		rm -rf $apply_log
+
+		failed=false
+		git apply --check $patch_email || failed=true
+		if $failed ; then
+			git apply -v $patch_email 2>&1 | tee $apply_log
+			echo "This patch cannot apply on $repo: $patch_email"
+			if $need_send ; then
+				test_report_series_apply_fail $repo $base $base_commit $patches_dir $apply_log $test_report
+				send_series_test_report $series_id $patches_dir "$label_compilation" $status_warning "$desc_apply_failure" $test_report $build_mail
+			fi
+			applied=false
+			break
+		fi
+
+		git am $patch_email
+		applied=true
+	done < $patches_dir/pwid_order.txt
+}
+
 while getopts hr arg ; do
 	case $arg in
 		r ) REUSE_PATCH=true ;;
@@ -151,75 +222,22 @@ else
 	echo "list trees for series $series_id: $repo"
 fi
 
-failed=false
-base=$(cat $repo_branch_cfg | jq "try ( .\"$repo\" )" |sed 's,",,g') || failed=true
-if $failed -o -z "$base" ; then
-	echo "get base branch for repo $repo failed"
-	exit 1
-fi
-
-DPDK_HOME=/home/zhoumin/$repo
-if [ ! -d "$DPDK_HOME" ] ; then
-	echo "$DPDK_HOME is not directory"
-	exit 1
-fi
-
-apply_log=$DPDK_HOME/apply-log.txt
-meson_log=$DPDK_HOME/build/meson-logs/meson-log.txt
-ninja_log=$DPDK_HOME/build/ninja-log.txt
-testlog_json=$DPDK_HOME/build/meson-logs/testlog.json
-testlog_txt=$DPDK_HOME/build/meson-logs/testlog.txt
-test_report=$DPDK_HOME/test-report.txt
-build_mail=build_mail.txt
-unit_test_mail=unit_test_mail.txt
-
 . $(dirname $(readlink -e $0))/gen-test-report.sh
 
-cd $DPDK_HOME
-
-if git status | grep -q "git am --abort" ; then
-       git am --abort
-fi
-
-git checkout $base
-git pull --rebase
-base_commit=`git log -1 --format=oneline |awk '{print $1}'`
-
-new_branch=$BRANCH_PREFIX-$series_id
-ret=`git branch --list $new_branch`
-if [ ! -z "$ret" ]; then
-	git branch -D $new_branch
-fi
-git checkout -b $new_branch
-
 applied=false
-while read line
-do
-	id=`echo $line|sed 's/^[[:space:]]*//g;s/[[:space:]]*$//g'`
-	if [ -z "$id" ] ; then
-		continue
-	fi
-	patch_email=$patches_dir/$id.patch
 
-	rm -rf $apply_log
+echo "try to apply on $repo ..."
+try_apply $repo true
 
-	failed=false
-	git apply --check $patch_email || failed=true
-	if $failed ; then
-		git apply -v $patch_email 2>&1 | tee $apply_log
-		echo "apply patch failure"
-		test_report_series_apply_fail $repo $base $base_commit $patches_dir $apply_log $test_report
-		send_series_test_report $series_id $patches_dir "$label_compilation" $status_warning "$desc_apply_failure" $test_report $build_mail
-		exit 0
-	fi
-
-	git am $patch_email
-	applied=true
-done < $patches_dir/pwid_order.txt
+if ! $applied ; then
+	echo "apply patch on $repo failed, try to apply on dpdk ..."
+	repo=dpdk
+	try_apply $repo false
+fi
 
 if ! $applied ; then
 	echo "Cannot apply any patch for series $series_id, please check series directory"
-	echo "Test not be executed!"
+	echo "Test will not be executed!"
 	exit 1
 fi
 
