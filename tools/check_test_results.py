@@ -28,7 +28,7 @@ def get_patch_url(pid):
     return "http://dpdk.org/patch/" + str(pid)
 
 def get_series_url(sid):
-    return "http://patches.dpdk.org/project/dpdk/list/?series=" + str(sid)
+    return "http://patches.dpdk.org/project/dpdk/list/?series=" + str(sid) + "&archive=both&state=*"
 
 class Series:
     def __init__(self, sid = -1, patches = [], c_time = 0, valid = False, message=""):
@@ -159,24 +159,40 @@ def get_series_set(series_ids):
 def check_test_results(pre_days, log_file):
     series_ids = []
     series_set = []
+    info_invalid = ""
+    info_error = ""
+    info_success = ""
 
     series_ids = get_series_ids(pre_days)
     if len(series_ids) == 0:
         return
-
     print(series_ids)
-    fp = open(log_file, "w")
+
     series_set = get_series_set(series_ids)
     for series in series_set:
         if not series.valid:
             info = get_series_url(series.sid) + ": " + series.message
-            print(info)
-            fp.write(info + "\n")
+            info_invalid += info + "\n"
             continue
         info = get_series_url(series.sid) + ": compilation is " + series.la_compilation
         info += ", unit-testing is " + series.la_unit_test
-        print(info)
-        fp.write(info + "\n")
+        if series.la_compilation != "success" or series.la_unit_test != "success":
+            info_error += info + "\n"
+        else:
+            info_success += info + "\n"
+
+    info = ""
+    if info_error != "":
+        info += info_error + "\n"
+    if info_invalid != "":
+        info += info_invalid + "\n"
+    if info_success != "":
+        info += info_success
+    print(info)
+
+    fp = open(log_file, "w")
+    if info != "":
+        fp.write(info)
 
     fp.close()
 
