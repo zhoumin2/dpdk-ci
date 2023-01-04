@@ -94,7 +94,7 @@ class Series:
 
         if not self.has_checks:
             self.valid = False
-            self.message = "get patch info failed"
+            self.message = "get series checks failed"
             return False
 
         return True
@@ -146,7 +146,7 @@ def get_series_by_id(sid):
     c_time = time.mktime(datetime.strptime(data["date"], "%Y-%m-%dT%H:%M:%S").timetuple()) + 28800
     if time.time() - c_time < 3600:
         print("Ignore series %s which committed at %s" % (str(sid), data["date"]))
-        return Series(sid=sid, c_time=c_time, valid=False, message="ignored for committed time ("+date["date"]+")")
+        return Series(sid=sid, c_time=c_time, valid=False, message="ignored for committed time ("+data["date"]+")")
 
     patches = []
     for p in data["patches"]:
