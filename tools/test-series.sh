@@ -133,7 +133,7 @@ try_apply() {
 	fi
 
 	git checkout $base
-	git pull --rebase
+	timeout -s SIGKILL 60s git pull --rebase
 	base_commit=`git log -1 --format=oneline |awk '{print $1}'`
 
 	new_branch=$BRANCH_PREFIX-$series_id
