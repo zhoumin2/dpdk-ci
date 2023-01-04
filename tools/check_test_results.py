@@ -58,7 +58,9 @@ class Series:
             return
 
         if not self.has_checks:
-            self.get_checks()
+            ret = self.get_checks()
+            if not ret:
+                return
 
         if self.last_id in self.checks:
             for check in self.checks[self.last_id]:
@@ -76,7 +78,7 @@ class Series:
 
     def get_checks(self):
         if not self.valid:
-            return
+            return False
 
         if self.last_id not in self.checks:
             checks = get_patch_checks(self.last_id)
@@ -89,6 +91,13 @@ class Series:
             if len(checks) > 0:
                 self.checks[self.first_id] = checks
                 self.has_checks = True
+
+        if not self.has_checks:
+            self.valid = False
+            self.message = "get patch info failed"
+            return False
+
+        return True
 
 def get_series_ids(pre_days):
     today = date.today()
