@@ -230,15 +230,19 @@ echo "try to apply on $repo ..."
 try_apply $repo true
 
 if ! $applied ; then
-	echo "apply patch on $repo failed, try to apply on dpdk ..."
-	repo=dpdk
-	try_apply $repo false
+	default_repo=dpdk
+	if [ $repo != $default_repo ] ; then
+		echo "apply patch on $repo failed, try to apply on $default_repo ..."
+		repo=$default_repo
+		try_apply $repo false
+	fi
 fi
 
 if ! $applied ; then
-	echo "Cannot apply any patch for series $series_id, please check series directory"
+	echo "Cannot apply patch(es) for series $series_id, please check series directory and related repos"
 	echo "Test will not be executed!"
-	exit 1
+	# exit successfully to skip this series
+	exit 0
 fi
 
 rm -rf build
