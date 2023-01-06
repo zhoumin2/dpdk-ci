@@ -130,6 +130,7 @@ check_series_test_report() {
 		return 1
 	fi
 
+	write_series_url=false
 	found=true
 	patches_dir=$(dirname $(readlink -e $0))/../series/$series_id
 	context=$(echo "$label_compilation" | sed 's/ /-/g')
@@ -138,6 +139,8 @@ check_series_test_report() {
 	else
 		found=false
 		echo "$label_compilation not found, notifying zhoumin ..."
+		echo "http://patches.dpdk.org/project/dpdk/list/?series=$series_id&archive=both&state=*" >> $tmp_file
+		write_series_url=true
 		echo "$label_compilation not found for pwid $last_pwid: http://dpdk.org/patch/$last_pwid" >> $tmp_file
 
 		mail_file=build_mail.txt
@@ -157,6 +160,9 @@ check_series_test_report() {
 	else
 		found=false
 		echo "$label_unit_testing not found, notifying zhoumin ..."
+		if ! $write_series_url ; then
+			echo "http://patches.dpdk.org/project/dpdk/list/?series=$series_id&archive=both&state=*" >> $tmp_file
+		fi
 		echo "$label_unit_testing not found for pwid $last_pwid: http://dpdk.org/patch/$last_pwid" >> $tmp_file
 
 		mail_file=unit_test_mail.txt
@@ -169,6 +175,7 @@ check_series_test_report() {
 			fi
 		fi
 	fi
+	echo "" >> $tmp_file
 
 	if ! $found ; then
 		return 1

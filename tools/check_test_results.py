@@ -11,15 +11,26 @@ import json
 import os
 import requests
 
+def try_request(url, retry=3):
+    i = 0
+    while i < retry:
+        r = requests.get(url)
+        try:
+            data = json.loads(r.text)
+            return data
+        except:
+            i += 1
+            time.sleep(1)
+
+    print(r.text)
+    return None
+
 def get_patch_checks(pid):
     url = "http://patches.dpdk.org/api/patches/" + str(pid) + "/checks/"
     print(url)
-    r = requests.get(url)
-    try:
-        data = json.loads(r.text)
-    except:
+    data = try_request(url)
+    if data == None:
         print("Parse checks info failed for patch %s" % (str(pid)))
-        print(r.text)
         return []
 
     return data
@@ -109,12 +120,9 @@ def get_series_ids(pre_days):
     while True:
         url = URL + "&page=" + str(page) + "&since=" + since.strftime("%Y-%m-%dT%H:%M:%S")
         print(url)
-        r = requests.get(url)
-        try:
-            data = json.loads(r.text)
-        except:
+        data = try_request(url)
+        if data == None:
             print("Parse series-completed response failed for url: %s" % (url))
-            print(r.text)
             sys.exit(0)
 
         if not isinstance(data, list):
@@ -135,12 +143,9 @@ def get_series_ids(pre_days):
 def get_series_by_id(sid):
     url = "http://patches.dpdk.org/api/series/" + str(sid)
     print(url)
-    r = requests.get(url)
-    try:
-        data = json.loads(r.text)
-    except:
+    data = try_request(url)
+    if data == None:
         print("Parse series info failed for series %s" % (str(sid)))
-        print(r.text)
         return Series(sid=sid, valid=False, message="get series info failed")
 
     c_time = time.mktime(datetime.strptime(data["date"], "%Y-%m-%dT%H:%M:%S").timetuple()) + 28800
