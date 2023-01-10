@@ -175,9 +175,9 @@ check_series_test_report() {
 			fi
 		fi
 	fi
-	echo "" >> $tmp_file
 
 	if ! $found ; then
+		echo "" >> $tmp_file
 		return 1
 	fi
 

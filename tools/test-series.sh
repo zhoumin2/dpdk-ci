@@ -213,11 +213,13 @@ export PW_PROJECT=dpdk
 export PW_TOKEN=$(cat $token_file)
 export MAINTAINERS_FILE_PATH=/home/zhoumin/dpdk/MAINTAINERS
 
+default_repo=dpdk
+
 failed=false
 repo=$(timeout -s SIGKILL 30s python3.8 $pw_maintainers_cli --type series list-trees $series_id) || failed=true
 if $failed -o -z "$repo" ; then
-	echo "list trees for series $series_id failed, default to 'dpdk'"
-	repo=dpdk
+	echo "list trees for series $series_id failed, default to '$default_repo'"
+	repo=$default_repo
 else
 	echo "list trees for series $series_id: $repo"
 fi
@@ -226,16 +228,25 @@ fi
 
 applied=false
 
+# Firstly, try to apply on prefer repo gotten from pw_maintainers_cli.py
+prefer_repo=$repo
 echo "try to apply on $repo ..."
-try_apply $repo true
+try_apply $repo false
 
+# Secondly, try to apply on default repo if failed on prefer repo
 if ! $applied ; then
-	default_repo=dpdk
 	if [ $repo != $default_repo ] ; then
 		echo "apply patch on $repo failed, try to apply on $default_repo ..."
 		repo=$default_repo
 		try_apply $repo false
 	fi
+fi
+
+# Thirdly, try to apply on prefer repo again and send email for failure
+if ! $applied ; then
+	repo=$prefer_repo
+	echo "try to apply on $repo again and send email if failed ..."
+	try_apply $repo true
 fi
 
 if ! $applied ; then
