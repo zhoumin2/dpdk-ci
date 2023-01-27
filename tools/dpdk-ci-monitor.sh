@@ -249,7 +249,7 @@ else
 	exit 0
 fi
 
-python3 $check_test_results $pre $tmp_file
+timeout -s SIGKILL 600s python3 $check_test_results $pre $tmp_file
 if test -s $tmp_file ; then
 	(
 	writeheaders "Summaries for test results" 'zhoumin@loongson.cn'
