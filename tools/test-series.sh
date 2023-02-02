@@ -159,8 +159,12 @@ try_apply() {
 			git apply -v $patch_email 2>&1 | tee $apply_log
 			echo "This patch cannot apply on $repo: $patch_email"
 			if $need_send ; then
+				failed=false
 				test_report_series_apply_fail $repo $base $base_commit $patches_dir $apply_log $test_report
-				send_series_test_report $series_id $patches_dir "$label_compilation" $status_warning "$desc_apply_failure" $test_report $build_mail
+				send_series_test_report $series_id $patches_dir "$label_compilation" $status_warning "$desc_apply_failure" $test_report $build_mail || failed=true
+				if $failed ; then
+				       echo "send series test report for $series_id failed!"
+				fi
 			fi
 			applied=false
 			break
