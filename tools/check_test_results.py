@@ -174,8 +174,11 @@ def check_test_results(pre_days, log_file):
     series_ids = []
     series_set = []
     info_invalid = ""
-    info_error = ""
-    info_success = ""
+    info_warn_miss = ""
+    info_fail_miss = ""
+    info_succ_miss = ""
+    info_succ_fail = ""
+    info_succ_succ = ""
 
     series_ids = get_series_ids(pre_days)
     if len(series_ids) == 0:
@@ -188,20 +191,37 @@ def check_test_results(pre_days, log_file):
             info = get_series_url(series.sid) + ": " + series.message
             info_invalid += info + "\n"
             continue
+
         info = get_series_url(series.sid) + ": compilation is " + series.la_compilation
         info += ", unit-testing is " + series.la_unit_test
-        if series.la_compilation != "success" or series.la_unit_test != "success":
-            info_error += info + "\n"
-        else:
-            info_success += info + "\n"
+
+        if series.la_compilation == "warning":
+            info_warn_miss += info + "\n"
+        elif series.la_compilation == "fail":
+            info_fail_miss += info + "\n"
+        elif series.la_compilation == "success":
+            if series.la_unit_test == "missed":
+                info_succ_miss += info + "\n"
+            elif series.la_unit_test == "fail":
+                info_succ_fail += info + "\n"
+            else:
+                info_succ_succ += info + "\n"
 
     info = ""
-    if info_error != "":
-        info += info_error + "\n"
+    if info_warn_miss != "":
+        info += info_warn_miss + "\n"
+    if info_fail_miss != "":
+        info += info_fail_miss + "\n"
+    if info_succ_miss != "":
+        info += info_succ_miss + "\n"
+    if info_succ_fail != "":
+        info += info_succ_fail + "\n"
+
     if info_invalid != "":
         info += info_invalid + "\n"
-    if info_success != "":
-        info += info_success
+
+    if info_succ_succ != "":
+        info += info_succ_succ
     print(info)
 
     fp = open(log_file, "w")
