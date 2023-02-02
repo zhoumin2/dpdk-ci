@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright 2016 6WIND S.A.
 
+format_mailaddr=$(dirname $(readlink -e $0))/../tools/format_mail_address.py
+
 print_usage () {
 	cat <<- END_OF_HELP
 	usage: $(basename $0) <email_file>
@@ -39,6 +41,7 @@ pwid=$(getheader X-Patchwork-Id "$1")
 listid=$(getheader List-Id "$1")
 reply=$(getheader In-Reply-To "$1")
 
+from="`python3 $format_mailaddr "$from"`"
 cat <<- END_OF_HEADERS
 	subject="$subject"
 	from="$from"
