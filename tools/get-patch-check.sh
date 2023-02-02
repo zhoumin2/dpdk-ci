@@ -35,22 +35,29 @@ if $verbose ; then
 fi
 
 failed=false
-resp=$(wget -q -O - "$URL") || failed=true
-if $verbose ; then
-	echo $resp
-fi
-if $failed ; then
-	echo "wget $URL failed"
-	echo "response: $resp"
-	exit 1
-fi
+for try in $(seq 3) ; do
+	failed=false
+	resp=$(wget -q -O - "$URL") || failed=true
+	if $verbose ; then
+		echo $resp
+	fi
+	if $failed ; then
+		echo "wget $URL failed"
+		#echo "response: $resp"
+		sleep 1
+		continue
+	fi
 
-failed=false
-contexts=$(echo "$resp" | jq "try ( .[] | .context )") || failed=true
+	failed=false
+	contexts=$(echo "$resp" | jq "try ( .[] | .context )") || failed=true
+	if $failed ; then
+		echo "jq handles failed, requested url: $URL"
+		#echo "response: $resp"
+		sleep 1
+		continue
+	fi
+done
 if $failed ; then
-	echo "jq handles failed"
-	echo "requested url: $URL"
-	echo "response: $resp"
 	exit 1
 fi
 

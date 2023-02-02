@@ -60,10 +60,18 @@ check_series_test_report() {
 	echo "$(basename $0): request "$url" to get submitted time"
 
 	failed=false
-	resp=$(wget -q -O - "$url") || failed=true
+	for try in $(seq 3) ; do
+		failed=false
+		resp=$(wget -q -O - "$url") || failed=true
+		if $failed ; then
+			echo "wget "$url" failed"
+			#echo "resp: "$resp""
+			#return 1
+			sleep 1
+			continue
+		fi
+	done
 	if $failed ; then
-		echo "wget "$url" failed"
-		echo "resp: "$resp""
 		return 1
 	fi
 
