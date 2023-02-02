@@ -6,6 +6,7 @@
 
 URL=http://patches.dpdk.org/api
 PAUSE_SECONDS=100
+DATA_DIR=$(dirname $(readlink -e $0))/../data
 
 print_usage () {
 	cat <<- END_OF_HELP
@@ -66,7 +67,7 @@ if ! curl -s $URL/projects/ | jq '.[].name' | grep -qi "^\"${project}\"$" ; then
 	exit 1
 fi
 
-poll_pw_ids_file=/tmp/poll_pw_${resource_type}_ids
+poll_pw_ids_file=$DATA_DIR/poll_pw_${resource_type}_ids
 if [ ! -f "$poll_pw_ids_file" ] ; then
 	touch $poll_pw_ids_file
 fi

@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright 2022 Loongson
 
+DATA_DIR=$(dirname $(readlink -e $0))/../data
+ERROR_FLAG="XXXXXXXXXX:"
+
 print_usage() {
 	cat <<- END_OF_HELP
 	usage: $(basename $0) [options]
@@ -60,28 +63,29 @@ check_series_test_report() {
 	echo "$(basename $0): request "$url" to get submitted time"
 
 	failed=false
-	for try in $(seq 3) ; do
+	for try in $(seq 5) ; do
 		failed=false
 		resp=$(wget -q -O - "$url") || failed=true
 		if $failed ; then
 			echo "wget "$url" failed"
-			#echo "resp: "$resp""
-			#return 1
 			sleep 1
 			continue
 		fi
+
+		failed=false
+		sub_time=$(echo "$resp" | jq "try ( .date )") || failed=true
+		if $failed ; then
+			echo "jq handles for sub_time failed"
+			sleep 1
+			continue
+		fi
+		break
 	done
 	if $failed ; then
+		echo "$ERROR_FLAG get submitted time for $series_id failed"
 		return 1
 	fi
 
-	failed=false
-	sub_time=$(echo "$resp" | jq "try ( .date )") || failed=true
-	if $failed ; then
-		echo "jq handles for sub_time failed"
-		echo "$resp"
-		return 1
-	fi
 	sub_time=$(echo $sub_time |sed 's/"//g')
 	echo "the sub_time for series $series_id: $sub_time"
 
@@ -99,13 +103,12 @@ check_series_test_report() {
 	failed=false
 	pids=$(echo "$resp" | jq "try ( .patches )" |jq "try ( .[] .id )") || failed=true
 	if $failed ; then
-		echo "jq handles for patch_ids failed"
-		echo "$resp"
+		echo "$ERROR_FLAG jq handles for patch_ids failed"
 		return 1
 	fi
 
 	if [ -z "$(echo $pids | tr -d '\n')" ] ; then
-		echo "cannot get pwid(s) for series $series_id"
+		echo "$ERROR_FLAG cannot get pwid(s) for series $series_id"
 		return 1
 	fi
 
@@ -119,7 +122,7 @@ check_series_test_report() {
 		contexts=$($get_patch_check $first_pwid) || failed=true
 		echo "contexts for first pwid $first_pwid: $contexts"
 		if $failed ; then
-			echo "find contexts for first pwid $first_pwid failed"
+			echo "$ERROR_FLAG find contexts for first pwid $first_pwid failed"
 		else
 			context=$(echo "$label_compilation" | sed 's/ /-/g')
 			if echo "$contexts" | grep -qi "$context" ; then
@@ -134,7 +137,7 @@ check_series_test_report() {
 	contexts=$($get_patch_check $last_pwid) || failed=true
 	echo "contexts for last pwid $last_pwid: $contexts"
 	if $failed ; then
-		echo "find contexts for last pwid $last_pwid failed"
+		echo "$ERROR_FLAG find contexts for last pwid $last_pwid failed"
 		return 1
 	fi
 
@@ -216,7 +219,7 @@ if [ -z "`echo $pre | sed -n '/^[0-9][0-9]*$/p'`" ] ; then
 	exit 1
 fi
 
-report_done_ids_file=/tmp/report_done_pw_${resource_type}_ids
+report_done_ids_file=$DATA_DIR/report_done_pw_${resource_type}_ids
 if [ ! -f "$report_done_ids_file" ] ; then
 	touch $report_done_ids_file
 fi

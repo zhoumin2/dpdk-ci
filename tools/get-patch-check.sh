@@ -56,6 +56,7 @@ for try in $(seq 3) ; do
 		sleep 1
 		continue
 	fi
+	break
 done
 if $failed ; then
 	exit 1
