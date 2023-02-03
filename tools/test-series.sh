@@ -6,6 +6,7 @@
 BRANCH_PREFIX=s
 REUSE_PATCH=false
 KEEP_BASE=false
+last_gpr_file="last_gpr.txt"
 
 parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
 send_series_report=$(dirname $(readlink -e $0))/../tools/send-series-report-la.sh
@@ -135,7 +136,25 @@ try_apply() {
 
 	git checkout $base
 	if ! $KEEP_BASE ; then
-		timeout -s SIGKILL 60s git pull --rebase
+		need_update=true
+		if [ -f "$last_gpr_file" ] ; then
+			failed=false
+			last_gpr=$(date +%s -d "$(cat $last_gpr_file | tr '\n' ' ')" '+%FT%T') || failed=true
+			if ! $failed ; then
+				now_ts=$(date +%s)
+				diff=$((now_ts-last_gpr))
+				if [ $diff -lt 36000 ] ; then
+					echo "no need to update git base"
+					need_update=false
+				fi
+			fi
+		fi
+		if $need_update ; then
+			echo "need to update git base"
+			timeout -s SIGKILL 60s git pull --rebase
+			date_now=$(date --utc '+%FT%T')
+			echo $date_now >$last_gpr_file
+		fi
 	fi
 	base_commit=`git log -1 --format=oneline |awk '{print $1}'`
 
