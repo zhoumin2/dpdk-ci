@@ -5,6 +5,7 @@
 
 BRANCH_PREFIX=s
 REUSE_PATCH=false
+KEEP_BASE=false
 
 parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
 send_series_report=$(dirname $(readlink -e $0))/../tools/send-series-report-la.sh
@@ -133,7 +134,9 @@ try_apply() {
 	fi
 
 	git checkout $base
-	timeout -s SIGKILL 60s git pull --rebase
+	if ! $KEEP_BASE ; then
+		timeout -s SIGKILL 60s git pull --rebase
+	fi
 	base_commit=`git log -1 --format=oneline |awk '{print $1}'`
 
 	new_branch=$BRANCH_PREFIX-$series_id
@@ -175,8 +178,9 @@ try_apply() {
 	done < $patches_dir/pwid_order.txt
 }
 
-while getopts hr arg ; do
+while getopts hkr arg ; do
 	case $arg in
+		k ) KEEP_BASE=true ;;
 		r ) REUSE_PATCH=true ;;
 		h ) print_usage ; exit 0 ;;
 		? ) print_usage >&2 ; exit 1 ;;

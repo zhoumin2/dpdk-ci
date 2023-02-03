@@ -1,0 +1,68 @@
+#! /bin/sh -e
+
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright 2022 Loongson
+
+resource_type=series
+DATA_DIR=$(dirname $(readlink -e $0))/../data
+
+print_usage () {
+	cat <<- END_OF_HELP
+	usage: $(basename $0) [OPTIONS] <patch|series> <file> <command>
+
+	Poll file contained patch/series id and call a command for each
+	new patch/series id. The command should use '$1' to be evaluated
+	as the patch/series id.
+	END_OF_HELP
+}
+
+while getopts h arg ; do
+	case $arg in
+		h ) print_usage ; exit 0 ;;
+		? ) print_usage >&2 ; exit 1 ;;
+	esac
+done
+
+if [ $# -lt 3 ] ; then
+	echo "missing argument(s)" >&2
+	print_usage >&2
+	exit 1
+fi
+
+shift $(($OPTIND - 1))
+resource_type=$1
+file=$2
+shift 2
+cmd=$*
+
+if [ ! -f "$file" ] ; then
+	echo "The file '$file' doesn't exist." >& 2
+	exit 1
+fi
+
+poll_pw_ids_file=$DATA_DIR/poll_pw_${resource_type}_ids
+if [ ! -f "$poll_pw_ids_file" ] ; then
+	touch $poll_pw_ids_file
+fi
+
+callcmd () # <patchwork id>
+{
+	echo "$(date '+%FT%T') $cmd $*"
+	eval $cmd $*
+}
+
+while read line
+do
+	id=`echo $line|sed 's/^[[:space:]]*//g;s/[[:space:]]*$//g'`
+	if [ -z "$id" ] ; then
+		continue
+	fi
+
+	if grep -q "^${id}$" $poll_pw_ids_file ; then
+		continue
+	fi
+
+	callcmd $id
+	echo $id >>$poll_pw_ids_file
+
+done < $file

@@ -6,6 +6,8 @@
 DEBUG=false
 project=DPDK
 resource_type=series
+test_series=$(dirname $(readlink -e $0))/test-series.sh
+series_id_file=$(dirname $(readlink -e $0))/../data/series_to_test.txt
 
 print_usage () {
 	cat <<- END_OF_HELP
@@ -78,4 +80,5 @@ fi
 
 setup
 
-$(dirname $(readlink -e $0))/poll-pw $resource_type $project $SINCE_FILE $(dirname $(readlink -e $0))/test-series.sh
+$(dirname $(readlink -e $0))/poll-pw $resource_type $project $SINCE_FILE $test_series
+#$(dirname $(readlink -e $0))/poll-file $resource_type $series_id_file $test_series -k
