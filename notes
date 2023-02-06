@@ -1,0 +1,9 @@
+[hugepage]
+# For Loongson 3c5000LL, having 8 nodes, make sure that each node has
+# 2GB hugepage memory
+echo 512 >  /sys/kernel/mm/hugepages/hugepages-32768kB/nr_hugepages
+
+[crontab]
+# Please use crontab -e to add blew two lines
+*/5 * * * * bash /home/zhoumin/dpdk-ci/tools/run-dpdk-ci.sh
+0 */12 * * * bash /home/zhoumin/dpdk-ci/tools/run-ci-monitor.sh
