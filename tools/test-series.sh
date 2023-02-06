@@ -139,11 +139,11 @@ try_apply() {
 		need_update=true
 		if [ -f "$last_gpr_file" ] ; then
 			failed=false
-			last_gpr=$(date +%s -d "$(cat $last_gpr_file | tr '\n' ' ')" '+%FT%T') || failed=true
+			last_gpr=$(date +%s -d "$(cat $last_gpr_file | tr '\n' ' ')") || failed=true
 			if ! $failed ; then
 				now_ts=$(date +%s)
 				diff=$((now_ts-last_gpr))
-				if [ $diff -lt 36000 ] ; then
+				if [ $diff -lt 3600 ] ; then
 					echo "no need to update git base"
 					need_update=false
 				fi
