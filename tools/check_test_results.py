@@ -14,8 +14,8 @@ import requests
 def try_request(url, retry=3):
     i = 0
     while i < retry:
-        r = requests.get(url)
         try:
+            r = requests.get(url)
             data = json.loads(r.text)
             return data
         except:

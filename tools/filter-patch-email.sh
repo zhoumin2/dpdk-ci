@@ -47,7 +47,7 @@ parse ()
 				subject=$(echo "$line" | sed 's,^Subject:[[:space:]]*,,')
 				while [ -n "$subject" ] ; do
 					echo "$subject" | grep -q '^\[' || break
-					if echo "$subject" | grep -qE '^\[(RFC |)PATCH' ; then
+					if echo "$subject" | grep -qE '^\[(RESEND |)(RFC |)PATCH' ; then
 						patchsubject=true
 						break
 					fi
