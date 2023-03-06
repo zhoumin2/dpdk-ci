@@ -174,6 +174,7 @@ def check_test_results(pre_days, log_file):
     series_ids = []
     series_set = []
     info_invalid = ""
+    info_all_miss = ""
     info_warn_miss = ""
     info_fail_miss = ""
     info_succ_miss = ""
@@ -195,7 +196,9 @@ def check_test_results(pre_days, log_file):
         info = get_series_url(series.sid) + ": compilation is " + series.la_compilation
         info += ", unit-testing is " + series.la_unit_test
 
-        if series.la_compilation == "warning":
+        if series.la_compilation == "missed":
+            info_all_miss += info + "\n"
+        elif series.la_compilation == "warning":
             info_warn_miss += info + "\n"
         elif series.la_compilation == "fail":
             info_fail_miss += info + "\n"
@@ -208,6 +211,8 @@ def check_test_results(pre_days, log_file):
                 info_succ_succ += info + "\n"
 
     info = ""
+    if info_all_miss != "":
+        info += info_all_miss + "\n"
     if info_warn_miss != "":
         info += info_warn_miss + "\n"
     if info_fail_miss != "":
