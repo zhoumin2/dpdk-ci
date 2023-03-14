@@ -12,26 +12,33 @@ def is_contain_chinese(check_str):
             return True
     return False
 
+def is_contain_8bit(check_str):
+    return len(check_str) != len(check_str.encode())
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(0)
 
     mailaddr = sys.argv[1]
     #print(mailaddr)
-    if not is_contain_chinese(mailaddr):
-        #print("not contain chinese")
-        print(mailaddr)
-        return
-
     a = mailaddr.find("<")
     b = mailaddr.find(">")
-    #print(a, b)
-    if a == -1 or b == -1 or b < a:
-        #print("cannot found '<' and '>'")
-        print(mailaddr)
+
+    if is_contain_chinese(mailaddr):
+        if a == -1 or b == -1 or b <= a:
+            print(mailaddr)
+        else:
+            print(mailaddr[a + 1 : b])
         return
 
-    print(mailaddr[a + 1 : b])
+    if is_contain_8bit(mailaddr):
+        if a == -1 or b == -1 or b <= a:
+            print(mailaddr)
+        else:
+            print(mailaddr[a + 1 : b])
+        return
+
+    print(mailaddr)
 
 if __name__ == "__main__":
     main()
