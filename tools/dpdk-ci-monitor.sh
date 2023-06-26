@@ -161,6 +161,8 @@ check_series_test_report() {
 				echo "try send build report for $series_id: $mail_path ..."
 				cat $mail_path | $sendmail -f"$smtp_user" -t
 				sleep $mail_send_interval
+			else
+				echo "resend failed because test report not existed: $mail_path" >> $tmp_file
 			fi
 		fi
 	fi
@@ -183,6 +185,8 @@ check_series_test_report() {
 				echo "try send test report for $series_id: $mail_path ..."
 				cat $mail_path | $sendmail -f"$smtp_user" -t
 				sleep $mail_send_interval
+			else
+				echo "resend failed because test report not existed: $mail_path" >> $tmp_file
 			fi
 		fi
 	fi
