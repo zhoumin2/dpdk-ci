@@ -1,7 +1,12 @@
 #!/bin/sh -e
 
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright 2022 Loongson
+
 prog="dpdk-ci-monitor.sh"
 DPDK_CI=/home/zhoumin/dpdk-ci
+
+echo "Running $(basename $0) at $(date '+%FT%T')"
 
 monitor_is_running() {
 	num=$(ps -ef | grep $prog | grep -v grep | grep -v vim | wc -l)

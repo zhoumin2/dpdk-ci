@@ -6,6 +6,8 @@
 DATA_DIR=$(dirname $(readlink -e $0))/../data
 ERROR_FLAG="XXXXXXXXXX:"
 
+echo "Running $(basename $0) at $(date '+%FT%T')"
+
 print_usage() {
 	cat <<- END_OF_HELP
 	usage: $(basename $0) [options]
