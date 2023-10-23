@@ -262,6 +262,10 @@ if test -s $tmp_file ; then
 	cat $tmp_file
 	) | $sendmail -f"$smtp_user" -t
 else
+	(
+	writeheaders "No missed test report found!" 'zhoumin@loongson.cn'
+	echo "No missed test report found!"
+	) | $sendmail -f"$smtp_user" -t
 	echo "No missed test report found!"
 	exit 0
 fi
@@ -273,6 +277,10 @@ if test -s $tmp_file ; then
 	cat $tmp_file
 	) | $sendmail -f"$smtp_user" -t
 else
+	(
+	writeheaders "Get summaries failed for test results!" 'zhoumin@loongson.cn'
+	echo "Get summaries failed for test results!"
+	) | $sendmail -f"$smtp_user" -t
 	echo "Get summaries failed for test results!"
 	exit 0
 fi
