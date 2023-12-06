@@ -15,6 +15,7 @@ get_patch_check=$(dirname $(readlink -e $0))/../tools/get-patch-check.sh
 parse_testlog=$(dirname $(readlink -e $0))/../tools/parse_testlog.py
 pw_maintainers_cli=$(dirname $(readlink -e $0))/../tools/pw_maintainers_cli.py
 repo_branch_cfg=$(dirname $(readlink -e $0))/../config/repo_branch.cfg
+repo_branch_cfg_v2=$(dirname $(readlink -e $0))/../config/repo_branch_v2.cfg
 token_file=$(dirname $(readlink -e $0))/../.pw_token.dat
 
 label_compilation="loongarch compilation"
@@ -107,13 +108,22 @@ try_apply() {
 	need_send=$2
 
 	failed=false
-	base=$(cat $repo_branch_cfg | jq "try ( .\"$repo\" )" |sed 's,",,g') || failed=true
+	ori_base=$(cat $repo_branch_cfg | jq "try ( .\"$repo\" )" |sed 's,",,g') || failed=true
+	if $failed -o -z "$ori_base" ; then
+		echo "get ori_base branch for repo $repo failed"
+		exit 1
+	fi
+
+	failed=false
+	base=$(cat $repo_branch_cfg_v2 | jq "try ( .\"$repo\" )" |sed 's,",,g') || failed=true
 	if $failed -o -z "$base" ; then
 		echo "get base branch for repo $repo failed"
 		exit 1
 	fi
 
-	DPDK_HOME=/home/zhoumin/$repo
+	# Use the DPDK github mirrors as the remote repo
+	# DPDK_HOME=/home/zhoumin/$repo
+	DPDK_HOME=/home/zhoumin/gh_dpdk
 	if [ ! -d "$DPDK_HOME" ] ; then
 		echo "$DPDK_HOME is not directory"
 		exit 1
@@ -182,7 +192,7 @@ try_apply() {
 			echo "This patch cannot apply on $repo: $patch_email"
 			if $need_send ; then
 				failed=false
-				test_report_series_apply_fail $repo $base $base_commit $patches_dir $apply_log $test_report
+				test_report_series_apply_fail $repo $ori_base $base_commit $patches_dir $apply_log $test_report
 				send_series_test_report $series_id $patches_dir "$label_compilation" $status_warning "$desc_apply_failure" $test_report $build_mail || failed=true
 				if $failed ; then
 				       echo "send series test report for $series_id failed!"
@@ -289,7 +299,7 @@ failed=false
 meson build || failed=true
 if $failed ; then
 	echo "meson build failure"
-	test_report_series_meson_build_fail $repo $base $base_commit $patches_dir $meson_log $test_report
+	test_report_series_meson_build_fail $repo $ori_base $base_commit $patches_dir $meson_log $test_report
 	send_series_test_report $series_id $patches_dir "$label_compilation" $status_failure "$desc_meson_build_failure" $test_report $build_mail
 	exit 0
 fi
@@ -298,13 +308,13 @@ failed=false
 ninja -C build &> $ninja_log || failed=true
 if $failed ; then
 	echo "ninja build failure"
-	test_report_series_ninja_build_fail $repo $base $base_commit $patches_dir $ninja_log $test_report
+	test_report_series_ninja_build_fail $repo $ori_base $base_commit $patches_dir $ninja_log $test_report
 	send_series_test_report $series_id $patches_dir "$label_compilation" $status_failure "$desc_ninja_build_failure" $test_report $build_mail
 	exit 0
 fi
 
 echo "meson & ninja build pass"
-test_report_series_build_pass $repo $base $base_commit $patches_dir $test_report
+test_report_series_build_pass $repo $ori_base $base_commit $patches_dir $test_report
 send_series_test_report $series_id $patches_dir "$label_compilation" $status_success "$desc_build_pass" $test_report $build_mail
 
 failed=false
@@ -312,13 +322,13 @@ meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 8 || failed=
 echo "test done!"
 if $failed ; then
 	echo "unit testing fail"
-	test_report_series_test_fail $repo $base $base_commit $patches_dir $testlog_json $testlog_txt $test_report
+	test_report_series_test_fail $repo $ori_base $base_commit $patches_dir $testlog_json $testlog_txt $test_report
 	send_series_test_report $series_id $patches_dir "$label_unit_testing" $status_failure "$desc_unit_test_fail" $test_report $unit_test_mail
 	exit 0
 fi
 
 echo "unit testing pass"
-test_report_series_test_pass $repo $base $base_commit $patches_dir $testlog_json $testlog_txt $test_report
+test_report_series_test_pass $repo $ori_base $base_commit $patches_dir $testlog_json $testlog_txt $test_report
 send_series_test_report $series_id $patches_dir "$label_unit_testing" $status_success "$desc_unit_test_pass" $test_report $unit_test_mail
 
 cd -
