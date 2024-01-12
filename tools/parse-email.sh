@@ -35,9 +35,7 @@ getheader () # <header_name> <email_file>
 
 subject=$(getheader Subject "$1")
 from=$(getheader From "$1")
-msgid=$(getheader Message-Id "$1")
-[ -n "$msgid" ] || msgid=$(getheader Message-ID "$1")
-[ -n "$msgid" ] || msgid=$(getheader Message-id "$1")
+msgid=$(getheader Message-[iI][dD] "$1")
 pwid=$(getheader X-Patchwork-Id "$1")
 listid=$(getheader List-Id "$1")
 reply=$(getheader In-Reply-To "$1")
