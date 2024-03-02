@@ -144,7 +144,14 @@ try_apply() {
 	       git am --abort
 	fi
 
-	git checkout $base
+	if git status | grep -q "git rebase --abort" ; then
+		git rebase --abort
+	fi
+
+	git checkout unused
+	git branch -D $base
+	git checkout origin/$base -b $base
+
 	if ! $KEEP_BASE ; then
 		need_update=true
 		if [ -f "$last_gpr_file" ] ; then
