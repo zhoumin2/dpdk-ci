@@ -234,10 +234,13 @@ fi
 series_id=$1
 patches_dir=$(dirname $(readlink -e $0))/../series/$series_id
 
+# This can also be "-g"
+g_opt=""
+
 if $REUSE_PATCH ; then
 	if [ ! -d $patches_dir ] ; then
 		failed=false
-		$download_series -g $series_id $patches_dir || failed=true
+		$download_series $g_opt $series_id $patches_dir || failed=true
 		if $failed ; then
 			echo "download series failed"
 			exit 1
@@ -245,7 +248,7 @@ if $REUSE_PATCH ; then
 	fi
 else
 	failed=false
-	$download_series -g $series_id $patches_dir || failed=true
+	$download_series $g_opt $series_id $patches_dir || failed=true
 	if $failed ; then
 		echo "download series failed"
 		exit 1
