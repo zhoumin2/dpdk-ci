@@ -3,19 +3,6 @@
 # SPDX-License-Identifier: (BSD-3-Clause AND GPL-2.0-or-later AND MIT)
 # Copyright 2019 Mellanox Technologies, Ltd
 
-import os
-import sys
-import re
-import argparse
-import fnmatch
-
-from requests.exceptions import HTTPError
-
-from git_pw import config
-from git_pw import api
-from git_pw import utils
-from git_pw import patch as git_pw_patch
-
 """
 Description:
 This script uses the git-pw API to retrieve Patchwork's
@@ -53,6 +40,18 @@ Or if you want to use inside other scripts:
     maintainers = maintainers.get_maintainers(tree_url)
 """
 
+import os
+import sys
+import re
+import argparse
+import fnmatch
+
+from requests.exceptions import HTTPError
+
+from git_pw import config
+from git_pw import api
+from git_pw import utils
+from git_pw import patch as git_pw_patch
 
 MAINTAINERS_FILE_PATH = os.environ.get('MAINTAINERS_FILE_PATH')
 if not MAINTAINERS_FILE_PATH:
@@ -125,6 +124,11 @@ class Diff(object):
             - Moved _filename_re into the method.
             - Reduced newlines.
         """
+        # sanity check diff
+        # for patches without any diff, it will try to run diff.replace
+        # while diff is None. just return an empty list
+        if diff is None:
+            return []
         _filename_re = re.compile(r'^(---|\+\+\+) (\S+)')
         # normalise spaces
         diff = diff.replace('\r', '')
@@ -199,13 +203,15 @@ class Maintainers(object):
         """
         Return a git tree that matches a list of files."""
         tree_list = []
+        file_tree_map = {}
         for _file in files:
             _tree = self._get_tree(_file)
             # Having no tree means that we accept those changes going through a
             # subtree (e.g. release notes).
             if _tree:
                 tree_list.append(_tree)
-        tree = self.get_common_denominator(tree_list)
+                file_tree_map[_file] = _tree
+        tree = self.get_common_denominator(tree_list, file_tree_map)
         if not tree:
             tree = 'git://dpdk.org/dpdk'
         return tree
@@ -264,7 +270,7 @@ class Maintainers(object):
         self.matched[matching_pattern] = tree
         return tree
 
-    def get_common_denominator(self, tree_list):
+    def get_common_denominator(self, tree_list, file_tree_map):
         """Finds a common tree by finding the longest common prefix.
         Examples for expected output:
           dpdk-next-virtio + dpdk = dpdk
@@ -282,10 +288,30 @@ class Maintainers(object):
         common_prefix = \
             os.path.commonprefix(_tree_list).rstrip('-').replace(
                     'dpdk-next-net-virtio', 'dpdk-next-virtio')
-        # There is no 'dpdk-next' named tree.
-        if common_prefix.endswith('dpdk-next') or common_prefix.endswith('/'):
+        # There is no 'dpdk-next' named tree, remove files that belong
+        # to 'drivers/common' and see if we find a tree.
+        if common_prefix.endswith('dpdk-next'):
+            common_prefix = self.get_filtered_tree(file_tree_map)
+        elif common_prefix.endswith('/'):
             common_prefix = 'git://dpdk.org/dpdk'
         return common_prefix
+
+    def get_common_files(self, files):
+        match_list = []
+        for f in files:
+            if re.match(r"drivers\/common", f) is not None:
+                match_list.append(f)
+        return match_list
+
+    def get_filtered_tree(self, file_tree_map):
+        # Get list of files that are in 'drivers/common'
+        common_list = self.get_common_files(file_tree_map.keys())
+        for c in common_list:
+            file_tree_map.pop(c, None)
+        tree_list = list(set(file_tree_map.values()))
+        if len(tree_list) == 1:
+            return tree_list[0]
+        return None
 
 
 if __name__ == '__main__':
