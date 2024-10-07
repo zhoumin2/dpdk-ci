@@ -82,3 +82,4 @@ setup
 
 $(dirname $(readlink -e $0))/poll-pw $resource_type $project $SINCE_FILE $test_series
 #$(dirname $(readlink -e $0))/poll-file $resource_type $series_id_file $test_series -k
+python3.8 $(dirname $(readlink -e $0))/recheck.py

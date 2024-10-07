@@ -7,10 +7,15 @@
 URL=http://patches.dpdk.org/api
 PAUSE_SECONDS=100
 DATA_DIR=$(dirname $(readlink -e $0))/../data
+POLL_TIMES=1
 
 print_usage () {
 	cat <<- END_OF_HELP
 	usage: $(basename $0) [OPTIONS] <patch|series> <project> </path/to/last.txt> <command>
+
+	options:
+		-h     print this help
+		-n     specify the poll times, default to 1
 
 	Poll patchwork and call a command for each new patch/series id.
 	The first date to filter with is read from the specified file.
@@ -24,12 +29,20 @@ if ! command -v jq >/dev/null 2>&1 ; then
 	exit 1
 fi
 
-while getopts h arg ; do
+while getopts hn: arg ; do
 	case $arg in
 		h ) print_usage ; exit 0 ;;
+		n ) POLL_TIMES=$OPTARG ;;
 		? ) print_usage >&2 ; exit 1 ;;
 	esac
 done
+
+if [ -z "`echo $POLL_TIMES | sed -n '/^[1-9][0-9]*$/p'`" ]; then
+	print_usage >&2
+	exit 1
+fi
+
+POLL_TIMES=$((POLL_TIMES+0))
 
 if [ $# -lt 4 ] ; then
 	printf 'missing argument(s)\n\n' >&2
@@ -80,7 +93,8 @@ callcmd () # <patchwork id>
 	eval $cmd $*
 }
 
-while true ; do
+p_idx=0
+while [ $p_idx -lt $POLL_TIMES ] ; do
 	date_now=$(date --utc '+%FT%T')
 	since=$(date -d "$(cat $since_file | tr '\n' ' ')" '+%FT%T')
 	page=1
@@ -115,6 +129,11 @@ while true ; do
 	if [ $(wc -l <$poll_pw_ids_file) -ge 1000 ] ; then
 		echo "$(tail -n 500 $poll_pw_ids_file)" >$poll_pw_ids_file
 	fi
+
+	p_idx=$((p_idx+1))
+
 	# pause before next check
-	sleep $PAUSE_SECONDS
+	if [ $p_idx -lt $POLL_TIMES ]; then
+		sleep $PAUSE_SECONDS
+	fi
 done
