@@ -211,11 +211,11 @@ try_apply() {
 	done < $patches_dir/pwid_order.txt
 }
 
-while getopts hkr arg ; do
+while getopts hkrt: arg ; do
 	case $arg in
 		k ) KEEP_BASE=true ;;
 		r ) REUSE_PATCH=true ;;
-		n ) RETEST_TIMES=$OPTARG ;;
+		t ) RETEST_TIMES=$OPTARG ;;
 		h ) print_usage ; exit 0 ;;
 		? ) print_usage >&2 ; exit 1 ;;
 	esac
@@ -232,12 +232,12 @@ if [ $RETEST_TIMES -lt 1 ]; then
         exit 1
 fi
 
-desc_apply_failure="apply patch failure "$RETEST_TIMES
-desc_meson_build_failure="meson build failure "$RETEST_TIMES
-desc_ninja_build_failure="ninja build failure "$RETEST_TIMES
-desc_build_pass="Compilation OK "$RETEST_TIMES
-desc_unit_test_fail="Unit Testing FAIL "$RETEST_TIMES
-desc_unit_test_pass="Unit Testing PASS "$RETEST_TIMES
+desc_apply_failure="apply patch failure RETEST #"$RETEST_TIMES
+desc_meson_build_failure="meson build failure RETEST #"$RETEST_TIMES
+desc_ninja_build_failure="ninja build failure RETEST #"$RETEST_TIMES
+desc_build_pass="Compilation OK RETEST #"$RETEST_TIMES
+desc_unit_test_fail="Unit Testing FAIL RETEST #"$RETEST_TIMES
+desc_unit_test_pass="Unit Testing PASS RETEST #"$RETEST_TIMES
 
 shift $((OPTIND - 1))
 
@@ -248,6 +248,7 @@ if [ $# -lt 1 ]; then
 fi
 
 series_id=$1
+printf "To retest series: $series_id"
 patches_dir=$(dirname $(readlink -e $0))/../series/$series_id
 
 # This can also be "-g"

@@ -8,6 +8,8 @@ project=DPDK
 resource_type=series
 test_series=$(dirname $(readlink -e $0))/test-series.sh
 series_id_file=$(dirname $(readlink -e $0))/../data/series_to_test.txt
+last_recheck_file=$(dirname $(readlink -e $0))/../data/last_recheck.txt
+recheck_db_file=$(dirname $(readlink -e $0))/../data/recheck_db.txt
 
 print_usage () {
 	cat <<- END_OF_HELP
@@ -82,4 +84,4 @@ setup
 
 $(dirname $(readlink -e $0))/poll-pw $resource_type $project $SINCE_FILE $test_series
 #$(dirname $(readlink -e $0))/poll-file $resource_type $series_id_file $test_series -k
-python3.8 $(dirname $(readlink -e $0))/recheck.py
+python3.8 $(dirname $(readlink -e $0))/recheck.py $last_recheck_file $recheck_db_file
