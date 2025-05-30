@@ -43,11 +43,12 @@ parse ()
 		set -- $line
 		if ! $content ; then
 			[ "$1" != 'X-Mailer:' -o "$2" != 'git-send-email' ] || gitsend=true
-			if echo "$line" | grep -qa '^Subject:.*PATCH' ; then
+			if echo "$line" | grep -qaE '^Subject:.*(PATCH|RFC)' ; then
 				subject=$(echo "$line" | sed 's,^Subject:[[:space:]]*,,')
 				while [ -n "$subject" ] ; do
 					echo "$subject" | grep -q '^\[' || break
-					if echo "$subject" | grep -qE '^\[(RESEND |)(RFC |)PATCH' ; then
+					if echo "$subject" | grep -qE '^\[(RESEND |)(RFC |)(PATCH |)' ; then
+						echo "find subject: $subject"
 						patchsubject=true
 						break
 					fi
