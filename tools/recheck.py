@@ -77,6 +77,14 @@ def recheck_db_insert(path, sid, last_ts):
     fp.write(str(sid) + " " + last_ts + "\n")
     fp.close()
 
+def get_recheck_json():
+    ret = ""
+    directory = os.path.split(os.path.realpath(__file__))[0]
+    recheck_json_file = os.path.join(directory, "../rerun_requests.json")
+    with open(recheck_json_file, "r") as f:
+        ret = f.read()
+    return ret
+
 def main():
     parser = argparse.ArgumentParser(
         description='recheck whether to rerun or not for LoongArch')
@@ -94,17 +102,21 @@ def main():
     print("recheck time: " + ts)
     try:
         p = subprocess.run(['/usr/bin/python3.8', script_path, '-ts', ts, '--contexts', 'loongarch-compilation',
-            'loongarch-unit-testing'], capture_output=True, timeout=120)
+            'loongarch-unit-testing'], capture_output=True, timeout=240)
     except subprocess.TimeoutExpired:
         print("get reruns timeout!")
         return
 
-    print(p.stdout)
-    if len(p.stdout) == 0:
+    #print(p.stdout)
+    #if len(p.stdout) == 0:
+    #    return
+    recheck_json = get_recheck_json()
+    print(recheck_json)
+    if len(recheck_json) == 0:
         return
 
     try:
-        rechecks = json.loads(p.stdout)
+        rechecks = json.loads(recheck_json)
     except:
         print("decode the results of get_reruns.py failed!")
         return
@@ -120,7 +132,17 @@ def main():
         times = get_retest_times(args.recheck_db, sid, last_ts)
         if times == -1:
             continue
-        subprocess.run(['/usr/bin/bash', script_path, '-t', str(times), sid])
+
+        one_retest = rechecks['retests'][sid]
+        rebase = ""
+        if "arguments" in one_retest and "rebase" in one_retest["arguments"]:
+            rebase = one_retest["arguments"]["rebase"]
+        print("retest sid(%s) rebase(%s)" % (sid, rebase))
+
+        if len(rebase) > 0:
+            subprocess.run(['/usr/bin/bash', script_path, '-t', str(times), '-b', rebase, sid])
+        else:
+            subprocess.run(['/usr/bin/bash', script_path, '-t', str(times), sid])
         recheck_db_insert(args.recheck_db, sid, last_ts)
 
     save_recheck_time(args.last_file, rechecks)

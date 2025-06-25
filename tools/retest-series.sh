@@ -7,6 +7,7 @@ BRANCH_PREFIX=s
 REUSE_PATCH=false
 RETEST_TIMES=-1
 KEEP_BASE=false
+REBASE=""
 last_gpr_file="last_gpr.txt"
 
 parse_email=$(dirname $(readlink -e $0))/../tools/parse-email.sh
@@ -35,6 +36,7 @@ print_usage() {
 
 	options:
 		-t     retest times for <series_id>
+		-b     rebase for <series_id>
 
 	Run dpdk ci tests for one series specified by the series_id
 	END_OF_HELP
@@ -117,6 +119,12 @@ try_apply() {
 		echo "get base branch for repo $repo failed"
 		exit 1
 	fi
+
+	echo "Developer request rebase: $REBASE"
+	if [ -n $REBASE ]; then
+		base=$REBASE
+	fi
+	echo "Final base: $base"
 
 	# Use the DPDK github mirrors as the remote repo
 	# DPDK_HOME=/home/zhoumin/$repo
@@ -211,8 +219,9 @@ try_apply() {
 	done < $patches_dir/pwid_order.txt
 }
 
-while getopts hkrt: arg ; do
+while getopts b:hkrt: arg ; do
 	case $arg in
+		b ) REBASE=$OPTARG ;;
 		k ) KEEP_BASE=true ;;
 		r ) REUSE_PATCH=true ;;
 		t ) RETEST_TIMES=$OPTARG ;;
