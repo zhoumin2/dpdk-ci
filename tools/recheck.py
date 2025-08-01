@@ -77,10 +77,14 @@ def recheck_db_insert(path, sid, last_ts):
     fp.write(str(sid) + " " + last_ts + "\n")
     fp.close()
 
+def get_recheck_file():
+    directory = os.path.split(os.path.realpath(__file__))[0]
+    recheck_json_file = os.path.join(directory, "../data/rerun_requests.json")
+    return recheck_json_file
+
 def get_recheck_json():
     ret = ""
-    directory = os.path.split(os.path.realpath(__file__))[0]
-    recheck_json_file = os.path.join(directory, "../rerun_requests.json")
+    recheck_json_file = get_recheck_file()
     with open(recheck_json_file, "r") as f:
         ret = f.read()
     return ret
@@ -100,9 +104,13 @@ def main():
 
     ts = get_recheck_time(args.last_file)
     print("recheck time: " + ts)
+
+    recheck_file = get_recheck_file()
+    print("recheck file: " + recheck_file)
+
     try:
         p = subprocess.run(['/usr/bin/python3.8', script_path, '-ts', ts, '--contexts', 'loongarch-compilation',
-            'loongarch-unit-testing'], capture_output=True, timeout=240)
+            'loongarch-unit-testing', '-o', recheck_file], capture_output=True, timeout=240)
     except subprocess.TimeoutExpired:
         print("get reruns timeout!")
         return

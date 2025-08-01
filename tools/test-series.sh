@@ -17,6 +17,7 @@ pw_maintainers_cli=$(dirname $(readlink -e $0))/../tools/pw_maintainers_cli.py
 repo_branch_cfg=$(dirname $(readlink -e $0))/../config/repo_branch.cfg
 repo_branch_cfg_v2=$(dirname $(readlink -e $0))/../config/repo_branch_v2.cfg
 token_file=$(dirname $(readlink -e $0))/../.pw_token.dat
+base_commits_file=$(dirname $(readlink -e $0))/../data/base_commits.txt
 
 label_compilation="loongarch compilation"
 label_unit_testing="loongarch unit testing"
@@ -214,6 +215,14 @@ try_apply() {
 	done < $patches_dir/pwid_order.txt
 }
 
+save_base_commit() {
+	sid=$1
+	commit=$2
+
+	echo "Insert one base commit: $sid $commit"
+	echo "$sid $commit" >> $base_commits_file
+}
+
 while getopts hkr arg ; do
 	case $arg in
 		k ) KEEP_BASE=true ;;
@@ -308,6 +317,8 @@ fi
 
 rm -rf build
 
+save_base_commit $series_id $base_commit
+
 failed=false
 meson build || failed=true
 if $failed ; then
@@ -331,7 +342,7 @@ test_report_series_build_pass $repo $ori_base $base_commit $patches_dir $test_re
 send_series_test_report $series_id $patches_dir "$label_compilation" $status_success "$desc_build_pass" $test_report $build_mail
 
 failed=false
-meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 8 || failed=true
+meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 20 || failed=true
 echo "test done!"
 if $failed ; then
 	echo "unit testing fail"

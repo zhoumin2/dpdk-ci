@@ -19,6 +19,7 @@ pw_maintainers_cli=$(dirname $(readlink -e $0))/../tools/pw_maintainers_cli.py
 repo_branch_cfg=$(dirname $(readlink -e $0))/../config/repo_branch.cfg
 repo_branch_cfg_v2=$(dirname $(readlink -e $0))/../config/repo_branch_v2.cfg
 token_file=$(dirname $(readlink -e $0))/../.pw_token.dat
+base_commits_file=$(dirname $(readlink -e $0))/../data/base_commits.txt
 
 label_compilation="loongarch compilation"
 label_unit_testing="loongarch unit testing"
@@ -120,9 +121,11 @@ try_apply() {
 		exit 1
 	fi
 
+	rebase=false
 	echo "Developer request rebase: $REBASE"
-	if [ -n $REBASE ]; then
+	if [ -n "$REBASE" ]; then
 		base=$REBASE
+		rebase=true
 	fi
 	echo "Final base: $base"
 
@@ -178,14 +181,20 @@ try_apply() {
 			echo $date_now >$last_gpr_file
 		fi
 	fi
-	base_commit=`git log -1 --format=oneline |awk '{print $1}'`
+
+	if ! $rebase ; then
+		base_commit=`grep  "^$series_id " $base_commits_file |tail -1|awk '{print $2}'`
+	fi
+	if [ -z "$base_commit" ] ; then
+		base_commit=`git log -1 --format=oneline |awk '{print $1}'`
+	fi
 
 	new_branch=$BRANCH_PREFIX-$series_id
 	ret=`git branch --list $new_branch`
 	if [ ! -z "$ret" ]; then
 		git branch -D $new_branch
 	fi
-	git checkout -b $new_branch
+	git checkout -b $new_branch $base_commit
 
 	while read line
 	do
@@ -257,7 +266,7 @@ if [ $# -lt 1 ]; then
 fi
 
 series_id=$1
-printf "To retest series: $series_id"
+printf "To retest series: $series_id\n"
 patches_dir=$(dirname $(readlink -e $0))/../series/$series_id
 
 # This can also be "-g"
@@ -357,7 +366,7 @@ test_report_series_build_pass $repo $ori_base $base_commit $patches_dir $test_re
 send_series_test_report $series_id $patches_dir "$label_compilation" $status_success "$desc_build_pass" $test_report $build_mail
 
 failed=false
-meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 8 || failed=true
+meson test -C build --suite DPDK:fast-tests --test-args="-l 0-7" -t 20 || failed=true
 echo "test done!"
 if $failed ; then
 	echo "unit testing fail"
