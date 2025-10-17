@@ -258,12 +258,12 @@ done
 
 if test -s $tmp_file ; then
 	(
-	writeheaders "Test reports not found!" 'zhoumin@loongson.cn'
+	writeheaders "Test reports not found!" 'maobibo@loongson.cn' 'lixianglai@loongson.cn, zhoumin@loongson.cn'
 	cat $tmp_file
 	) | $sendmail -f"$smtp_user" -t
 else
 	(
-	writeheaders "No missed test report found!" 'zhoumin@loongson.cn'
+	writeheaders "No missed test report found!" 'maobibo@loongson.cn' 'lixianglai@loongson.cn, zhoumin@loongson.cn'
 	echo "No missed test report found!"
 	) | $sendmail -f"$smtp_user" -t
 	echo "No missed test report found!"
@@ -273,12 +273,12 @@ fi
 timeout -s SIGKILL 600s python3 $check_test_results $pre $tmp_file
 if test -s $tmp_file ; then
 	(
-	writeheaders "Summaries for test results" 'zhoumin@loongson.cn'
+	writeheaders "Summaries for test results" 'maobibo@loongson.cn' 'lixianglai@loongson.cn, zhoumin@loongson.cn'
 	cat $tmp_file
 	) | $sendmail -f"$smtp_user" -t
 else
 	(
-	writeheaders "Get summaries failed for test results!" 'zhoumin@loongson.cn'
+	writeheaders "Get summaries failed for test results!" 'maobibo@loonson.cn' 'lixianglai@loongson.cn, zhoumin@loongson.cn'
 	echo "Get summaries failed for test results!"
 	) | $sendmail -f"$smtp_user" -t
 	echo "Get summaries failed for test results!"

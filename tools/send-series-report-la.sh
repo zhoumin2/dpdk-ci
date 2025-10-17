@@ -75,7 +75,7 @@ if [ -t 0 ] ; then
 fi
 report=$(cat)
 
-ci_maintainer="zhoumin@loongson.cn"
+ci_maintainer="maobibo@loongson.cn"
 
 writeheaders () # <subject> <ref> <to> [cc]
 {
